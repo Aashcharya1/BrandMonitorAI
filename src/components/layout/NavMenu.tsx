@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Users,
   MessageSquare,
+  History,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity },
   { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert },
   { href: "/social-media-monitoring", label: "Social Media", icon: Users },
+  { href: "/chat-history", label: "Chat History", icon: History },
 ];
 
 export function NavMenu() {
