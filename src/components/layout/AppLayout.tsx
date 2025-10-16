@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/sidebar";
 import { NavMenu } from "./NavMenu";
 import { Button } from "../ui/button";
-import { Settings } from "lucide-react";
-import Link from "next/link";
+import { Settings, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Separator } from "../ui/separator";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,6 +53,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <NavMenu />
         </SidebarContent>
         <SidebarFooter>
+            <Separator className="my-2" />
+             <div className="flex items-center gap-3 p-2">
+                <Avatar className="h-9 w-9">
+                    <AvatarFallback><User size={20} /></AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">My Profile</span>
+                    <span className="text-xs text-muted-foreground">user@example.com</span>
+                </div>
+            </div>
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="h-5 w-5" />
               <span>Settings</span>
@@ -64,7 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarTrigger />
           <h2 className="text-lg font-medium">{getPageTitle(pathname)}</h2>
         </header>
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="h-full flex-1 overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
