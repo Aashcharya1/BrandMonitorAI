@@ -54,7 +54,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
             <Separator className="my-2" />
-             <div className="flex items-center gap-3 p-2 group-data-[collapsed=icon]:justify-center group-data-[collapsed=icon]:p-0">
+             <div className="flex items-center gap-3 p-2 group-data-[collapsed=icon]:justify-center">
                 <Avatar className="h-9 w-9">
                     <AvatarFallback><User size={20} /></AvatarFallback>
                 </Avatar>
