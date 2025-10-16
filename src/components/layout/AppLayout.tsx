@@ -14,22 +14,30 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { NavMenu } from "./NavMenu";
-import { Settings, User } from "lucide-react";
+import { Settings, User, MessageSquare } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
+import Link from "next/link";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const getPageTitle = (path: string) => {
     if (path === '/') return "Chat";
+    if (path.startsWith('/chat/')) return "Chat";
     return path
       .substring(1)
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   }
+
+  const mockRecentChats = [
+    { id: '1', title: 'DMARC Policy Analysis' },
+    { id: '2', title: 'Suspicious Domain Query' },
+    { id: '3', title: 'Latest Phishing Trends' },
+  ];
 
   return (
     <SidebarProvider>
@@ -51,30 +59,54 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-semibold group-data-[state=collapsed]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
-        <SidebarContent className="p-2">
-            <NavMenu />
-        </SidebarContent>
-        <SidebarFooter className="p-2">
+        <SidebarContent className="p-0">
+            <div className="p-2">
+              <NavMenu />
+            </div>
             <Separator className="my-2" />
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback><User size={18} /></AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col group-data-[state=collapsed]:hidden">
-                            <span className="text-sm font-medium text-foreground">My Profile</span>
-                            <span className="text-xs text-muted-foreground">user@example.com</span>
-                        </div>
+            <div className="flex-1 overflow-y-auto">
+              <p className="px-4 py-2 text-xs font-semibold text-muted-foreground group-data-[state=collapsed]:hidden">Recent</p>
+              <SidebarMenu>
+                {mockRecentChats.map((chat) => (
+                  <SidebarMenuItem key={chat.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === `/chat/${chat.id}`}
+                      tooltip={{ children: chat.title, side: "right", align: "center" }}
+                    >
+                      <Link href={`/chat/${chat.id}`}>
+                        <MessageSquare />
+                        <span>{chat.title}</span>
+                      </Link>
                     </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
-                        <Settings />
-                        <span className="group-data-[state=collapsed]:hidden">Settings</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </div>
+        </SidebarContent>
+        <SidebarFooter className="p-0">
+            <Separator className="my-2" />
+            <div className="p-2">
+              <SidebarMenu>
+                  <SidebarMenuItem>
+                      <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
+                          <Avatar className="h-8 w-8">
+                              <AvatarFallback><User size={18} /></AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col group-data-[state=collapsed]:hidden">
+                              <span className="text-sm font-medium text-foreground">My Profile</span>
+                              <span className="text-xs text-muted-foreground">user@example.com</span>
+                          </div>
+                      </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                      <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
+                          <Settings />
+                          <span className="group-data-[state=collapsed]:hidden">Settings</span>
+                      </SidebarMenuButton>
+                  </SidebarMenuItem>
+              </SidebarMenu>
+            </div>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
