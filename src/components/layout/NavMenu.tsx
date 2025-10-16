@@ -15,9 +15,11 @@ import {
   Network,
   ShieldAlert,
   Users,
+  MessageSquare,
 } from "lucide-react";
 
 const navItems = [
+  { href: "/", label: "Chat", icon: MessageSquare },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck },
   { href: "/dns-monitoring", label: "DNS", icon: Network },

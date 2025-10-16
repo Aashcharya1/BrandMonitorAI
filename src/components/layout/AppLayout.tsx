@@ -15,14 +15,13 @@ import { Button } from "../ui/button";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChatInterface } from "../ChatInterface";
 import { Separator } from "../ui/separator";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const getPageTitle = (path: string) => {
-    if (path === '/') return "Dashboard";
+    if (path === '/') return "Chat";
     return path
       .substring(1)
       .split('-')
@@ -50,16 +49,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-semibold">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
-        <SidebarContent className="p-0">
-          <div className="flex h-full flex-col">
-            <div className="p-2">
-              <NavMenu />
-            </div>
-            <Separator />
-            <div className="flex-1 overflow-hidden">
-                <ChatInterface />
-            </div>
-          </div>
+        <SidebarContent className="p-2">
+            <NavMenu />
         </SidebarContent>
         <SidebarFooter>
             <Button variant="ghost" className="w-full justify-start">
@@ -73,7 +64,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarTrigger />
           <h2 className="text-lg font-medium">{getPageTitle(pathname)}</h2>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -1,5 +1,7 @@
-import { redirect } from 'next/navigation';
+"use client";
+
+import { ChatInterface } from "@/components/ChatInterface";
 
 export default function Home() {
-  redirect('/dashboard');
+  return <ChatInterface />;
 }

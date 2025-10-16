@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizonal, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card } from "./ui/card";
 
 type Message = {
   id: number;
@@ -56,9 +57,9 @@ export function ChatInterface() {
 
 
   return (
-    <div className="flex h-full flex-col bg-transparent">
-      <ScrollArea className="flex-1 px-2" viewportRef={scrollViewportRef}>
-        <div className="space-y-4 py-4">
+    <div className="h-full flex flex-col p-4 md:p-6">
+      <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
+        <div className="space-y-4 py-4 max-w-4xl mx-auto w-full">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -86,26 +87,28 @@ export function ChatInterface() {
           ))}
         </div>
       </ScrollArea>
-      <div className="border-t bg-sidebar p-2">
-        <div className="relative">
-          <Input
-            placeholder="Ask a question..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-            className="pr-12 bg-background"
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={handleSendMessage}
-            disabled={!input.trim()}
-          >
-            <SendHorizonal className="h-5 w-5" />
-            <span className="sr-only">Send</span>
-          </Button>
-        </div>
+      <div className="pt-4 max-w-4xl mx-auto w-full">
+        <Card className="p-2">
+            <div className="relative">
+            <Input
+                placeholder="Ask a question..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                className="pr-12 bg-background border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleSendMessage}
+                disabled={!input.trim()}
+            >
+                <SendHorizonal className="h-5 w-5" />
+                <span className="sr-only">Send</span>
+            </Button>
+            </div>
+        </Card>
       </div>
     </div>
   );
