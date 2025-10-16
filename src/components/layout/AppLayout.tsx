@@ -54,7 +54,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
             <Separator className="my-2" />
-             <div className="flex items-center gap-3 p-2">
+             <div className="flex items-center gap-3 p-2 group-data-[collapsed=icon]:p-0 group-data-[collapsed=icon]:justify-center">
                 <Avatar className="h-9 w-9">
                     <AvatarFallback><User size={20} /></AvatarFallback>
                 </Avatar>
@@ -63,7 +63,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="text-xs text-muted-foreground">user@example.com</span>
                 </div>
             </div>
-            <Button variant="ghost" className="w-full justify-start">
+            <Button variant="ghost" className="w-full justify-start group-data-[collapsed=icon]:justify-center group-data-[collapsed=icon]:w-auto">
               <Settings className="h-5 w-5" />
               <span className="group-data-[collapsed=icon]:hidden">Settings</span>
             </Button>
