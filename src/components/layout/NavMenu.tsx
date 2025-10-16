@@ -15,18 +15,15 @@ import {
   Network,
   ShieldAlert,
   Users,
-  MessageSquare,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 const navItems = [
-  { href: "/", label: "Chat", icon: MessageSquare },
-  { href: "/dashboard", label: "Dashboard Overview", icon: LayoutDashboard },
-  { href: "/active-passive-monitoring", label: "Active & Passive Monitoring", icon: Activity },
-  { href: "/dmarc-monitoring", label: "DMARC Monitoring", icon: MailCheck },
-  { href: "/dns-monitoring", label: "DNS Monitoring", icon: Network },
-  { href: "/dark-web-monitoring", label: "Dark-Web Monitoring", icon: ShieldAlert },
-  { href: "/social-media-monitoring", label: "Social Media Monitoring", icon: Users },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck },
+  { href: "/dns-monitoring", label: "DNS", icon: Network },
+  { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity },
+  { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert },
+  { href: "/social-media-monitoring", label: "Social Media", icon: Users },
 ];
 
 export function NavMenu() {

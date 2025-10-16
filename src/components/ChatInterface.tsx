@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SendHorizonal } from "lucide-react";
+import { SendHorizonal, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -18,7 +18,7 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Welcome to BrandGuardian. How can I assist you with your brand protection today?",
+      text: "Welcome to BrandMonitorAI. How can I help?",
       sender: "ai",
     }
   ]);
@@ -37,6 +37,7 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
+    // Mock AI response
     setTimeout(() => {
       const aiMessage: Message = {
         id: Date.now() + 1,
@@ -55,25 +56,25 @@ export function ChatInterface() {
 
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] flex-col rounded-xl border bg-card shadow-sm">
-      <ScrollArea className="flex-1 p-4" viewportRef={scrollViewportRef}>
-        <div className="space-y-6 pr-4">
+    <div className="flex h-full flex-col bg-transparent">
+      <ScrollArea className="flex-1 px-2" viewportRef={scrollViewportRef}>
+        <div className="space-y-4 py-4">
           {messages.map((message) => (
             <div
               key={message.id}
               className={cn(
                 "flex items-start gap-3",
-                message.sender === "user" && "justify-end"
+                message.sender === "user" ? "justify-end" : "justify-start"
               )}
             >
               {message.sender === "ai" && (
-                <Avatar className="h-8 w-8 border">
-                   <AvatarFallback>BG</AvatarFallback>
+                <Avatar className="h-8 w-8 border bg-primary text-primary-foreground">
+                   <AvatarFallback><Bot size={16}/></AvatarFallback>
                 </Avatar>
               )}
               <div
                 className={cn(
-                  "max-w-md rounded-lg p-3",
+                  "max-w-[80%] rounded-lg p-3 text-sm",
                   message.sender === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
@@ -81,23 +82,18 @@ export function ChatInterface() {
               >
                 <p className="leading-relaxed">{message.text}</p>
               </div>
-               {message.sender === "user" && (
-                <Avatar className="h-8 w-8 border">
-                   <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-              )}
             </div>
           ))}
         </div>
       </ScrollArea>
-      <div className="border-t bg-card p-4">
+      <div className="border-t bg-sidebar p-2">
         <div className="relative">
           <Input
-            placeholder="Ask about your brand protection status..."
+            placeholder="Ask a question..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-            className="pr-12"
+            className="pr-12 bg-background"
           />
           <Button
             size="icon"

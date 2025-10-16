@@ -1,9 +1,5 @@
-import { ChatInterface } from "@/components/ChatInterface";
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return (
-    <div className="h-full">
-      <ChatInterface />
-    </div>
-  );
+  redirect('/dashboard');
 }

@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'BrandGuardian',
+  title: 'BrandMonitorAI',
   description: 'Brand Protection Dashboard',
 };
 
