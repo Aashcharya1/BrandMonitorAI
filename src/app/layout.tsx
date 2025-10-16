@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'BrandMonitorAI',
@@ -14,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -24,8 +25,15 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AppLayout>{children}</AppLayout>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AppLayout>{children}</AppLayout>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

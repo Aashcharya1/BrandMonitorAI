@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import Link from "next/link";
+import { ThemeToggle } from "../ThemeToggle";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -42,7 +43,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar" side="left">
-        <SidebarHeader>
+        <SidebarHeader className="p-2">
             <div className="flex items-center gap-2 p-2">
                 <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -59,10 +60,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-semibold group-data-[state=collapsed]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
-        <SidebarContent className="p-0">
-            <div className="p-2">
-              <NavMenu />
-            </div>
+        <SidebarContent>
+            <NavMenu />
             <Separator className="my-2" />
             <div className="flex-1 overflow-y-auto">
               <p className="px-4 py-2 text-xs font-semibold text-muted-foreground group-data-[state=collapsed]:hidden">Recent</p>
@@ -76,7 +75,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     >
                       <Link href={`/chat/${chat.id}`}>
                         <MessageSquare />
-                        <span>{chat.title}</span>
+                        <span className="group-data-[state=collapsed]:hidden">{chat.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -84,29 +83,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </div>
         </SidebarContent>
-        <SidebarFooter className="p-0">
+        <SidebarFooter>
             <Separator className="my-2" />
-            <div className="p-2">
-              <SidebarMenu>
-                  <SidebarMenuItem>
-                      <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
-                          <Avatar className="h-8 w-8">
-                              <AvatarFallback><User size={18} /></AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col group-data-[state=collapsed]:hidden">
-                              <span className="text-sm font-medium text-foreground">My Profile</span>
-                              <span className="text-xs text-muted-foreground">user@example.com</span>
-                          </div>
-                      </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                      <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
-                          <Settings />
-                          <span className="group-data-[state=collapsed]:hidden">Settings</span>
-                      </SidebarMenuButton>
-                  </SidebarMenuItem>
-              </SidebarMenu>
-            </div>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback><User size={18} /></AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col group-data-[state=collapsed]:hidden">
+                            <span className="text-sm font-medium text-foreground">My Profile</span>
+                            <span className="text-xs text-muted-foreground">user@example.com</span>
+                        </div>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
+                        <Settings />
+                        <span className="group-data-[state=collapsed]:hidden">Settings</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <ThemeToggle />
+                </SidebarMenuItem>
+            </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

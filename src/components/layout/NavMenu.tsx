@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Users,
   MessageSquare,
+  History,
 } from "lucide-react";
 
 const navItems = [
@@ -32,7 +33,7 @@ export function NavMenu() {
   const pathname = usePathname();
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="p-2">
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
@@ -42,7 +43,7 @@ export function NavMenu() {
           >
             <Link href={item.href}>
               <item.icon />
-              <span>{item.label}</span>
+              <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
