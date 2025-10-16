@@ -33,7 +33,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar" side="left">
         <SidebarHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 p-2">
                 <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -63,7 +63,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="text-xs text-muted-foreground">user@example.com</span>
                 </div>
             </div>
-            <Button variant="ghost" className="w-full justify-start group-data-[collapsed=icon]:w-10 group-data-[collapsed=icon]:justify-center">
+            <Button variant="ghost" className="w-full justify-start group-data-[collapsed=icon]:w-10 group-data-[collapsed=icon]:justify-center p-2">
               <Settings className="h-5 w-5" />
               <span className="group-data-[collapsed=icon]:hidden">Settings</span>
             </Button>
