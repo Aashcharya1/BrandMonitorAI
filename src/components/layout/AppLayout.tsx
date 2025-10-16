@@ -9,9 +9,11 @@ import {
   SidebarFooter,
   SidebarTrigger,
   SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { NavMenu } from "./NavMenu";
-import { Button } from "../ui/button";
 import { Settings, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Separator } from "../ui/separator";
@@ -54,19 +56,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter className="p-2">
             <Separator className="my-2" />
-             <div className="flex items-center gap-3 p-2 group-data-[collapsed=icon]:justify-center group-data-[collapsed=icon]:p-0 group-data-[collapsed=icon]:w-10">
-                <Avatar className="h-9 w-9">
-                    <AvatarFallback><User size={20} /></AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col group-data-[collapsed=icon]:hidden">
-                    <span className="text-sm font-medium text-foreground">My Profile</span>
-                    <span className="text-xs text-muted-foreground">user@example.com</span>
-                </div>
-            </div>
-            <Button variant="ghost" className="w-full justify-start group-data-[collapsed=icon]:w-10 group-data-[collapsed=icon]:justify-center group-data-[collapsed=icon]:p-0 p-2">
-              <Settings className="h-5 w-5" />
-              <span className="group-data-[collapsed=icon]:hidden">Settings</span>
-            </Button>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="justify-start p-2">
+                        <Avatar className="h-9 w-9">
+                            <AvatarFallback><User size={20} /></AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col group-data-[collapsed=icon]:hidden">
+                            <span className="text-sm font-medium text-foreground">My Profile</span>
+                            <span className="text-xs text-muted-foreground">user@example.com</span>
+                        </div>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
+                        <Settings />
+                        <span>Settings</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
