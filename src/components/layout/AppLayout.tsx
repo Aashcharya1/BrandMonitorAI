@@ -16,7 +16,6 @@ import {
 import { NavMenu } from "./NavMenu";
 import { Settings, User, MessageSquare } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import Link from "next/link";
 import { ThemeToggle } from "../ThemeToggle";
@@ -60,11 +59,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-semibold group-data-[state=collapsed]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="p-0">
             <NavMenu />
-            <Separator className="my-2" />
-            <div className="flex-1 overflow-y-auto">
-              <p className="px-4 py-2 text-xs font-semibold text-muted-foreground group-data-[state=collapsed]:hidden">Recent</p>
+            <div className="flex-1 overflow-y-auto p-2">
+              <p className="px-2 py-2 text-xs font-semibold text-muted-foreground group-data-[state=collapsed]:hidden">Recent</p>
               <SidebarMenu>
                 {mockRecentChats.map((chat) => (
                   <SidebarMenuItem key={chat.id}>
@@ -83,12 +81,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </div>
         </SidebarContent>
-        <SidebarFooter>
-            <Separator className="my-2" />
-            <SidebarMenu>
+        <SidebarFooter className="p-0">
+            <SidebarMenu className="p-2">
                 <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
-                        <Avatar className="h-8 w-8">
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-2 group-data-[state=collapsed]:justify-center">
+                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-6 group-data-[state=collapsed]:w-6">
                             <AvatarFallback><User size={18} /></AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col group-data-[state=collapsed]:hidden">
@@ -103,9 +100,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         <span className="group-data-[state=collapsed]:hidden">Settings</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <ThemeToggle />
-                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
@@ -113,6 +107,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="flex h-14 items-center gap-4 border-b bg-card px-6 sticky top-0 z-30">
           <SidebarTrigger />
           <h2 className="text-lg font-medium">{getPageTitle(pathname)}</h2>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
         <main className="h-full flex-1 overflow-auto">{children}</main>
       </SidebarInset>
