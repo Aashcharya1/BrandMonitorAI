@@ -1,6 +1,6 @@
-import { Card, CardHeader, CardTitle, CardContent from "@/components/ui/card";
-import { DnsBarChart from "@/components/charts/DnsBarChart";
-import { mockDnsData from "@/lib/mock-data";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { DnsBarChart } from "@/components/charts/DnsBarChart";
+import { mockDnsData } from "@/lib/mock-data";
 
 export default function DnsMonitoringPage() {
   return (

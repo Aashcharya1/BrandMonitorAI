@@ -1,8 +1,8 @@
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DmarcPieChart } from "@/components/charts/DmarcPieChart";
-import { mockDmarcData from "@/lib/mock-data";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow from "@/components/ui/table";
-import { Badge from "@/components/ui/badge";
+import { mockDmarcData } from "@/lib/mock-data";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const recentReports = [
     { source: 'google.com', count: 12543, policy: 'none', pass: '99.8%' },
