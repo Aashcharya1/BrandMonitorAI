@@ -48,35 +48,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
-                <h1 className="text-xl font-semibold group-data-[collapsed=icon]:hidden">BrandMonitorAI</h1>
+                <h1 className="text-xl font-semibold group-data-[state=collapsed]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
         <SidebarContent className="p-2">
             <NavMenu />
         </SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className="p-2">
             <Separator className="my-2" />
-            <div className="p-2">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="justify-start">
-                            <Avatar className="h-8 w-8">
-                                <AvatarFallback><User size={18} /></AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col group-data-[collapsed=icon]:hidden">
-                                <span className="text-sm font-medium text-foreground">My Profile</span>
-                                <span className="text-xs text-muted-foreground">user@example.com</span>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
-                            <Settings />
-                            <span className="group-data-[collapsed=icon]:hidden">Settings</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </div>
+             <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="justify-start">
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback><User size={18} /></AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col group-data-[state=collapsed]:hidden">
+                            <span className="text-sm font-medium text-foreground">My Profile</span>
+                            <span className="text-xs text-muted-foreground">user@example.com</span>
+                        </div>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
+                        <Settings />
+                        <span className="group-data-[state=collapsed]:hidden">Settings</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
