@@ -72,11 +72,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </div>
         </SidebarContent>
-        <SidebarFooter className="p-2">
-            <SidebarMenu>
+        <SidebarFooter className="p-0">
+            <SidebarMenu className="p-2">
                 <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-2 group-data-[state=collapsed]:justify-center">
-                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-6 group-data-[state=collapsed]:w-6">
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
+                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8">
                             <AvatarFallback><User size={18} /></AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col group-data-[state=collapsed]:hidden">
