@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
-                <h1 className="text-xl font-semibold">BrandMonitorAI</h1>
+                <h1 className="text-xl font-semibold group-data-[collapsed=icon]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
         <SidebarContent className="p-2">
@@ -58,14 +58,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Avatar className="h-9 w-9">
                     <AvatarFallback><User size={20} /></AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
+                <div className="flex flex-col group-data-[collapsed=icon]:hidden">
                     <span className="text-sm font-medium text-foreground">My Profile</span>
                     <span className="text-xs text-muted-foreground">user@example.com</span>
                 </div>
             </div>
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="h-5 w-5" />
-              <span>Settings</span>
+              <span className="group-data-[collapsed=icon]:hidden">Settings</span>
             </Button>
         </SidebarFooter>
       </Sidebar>
