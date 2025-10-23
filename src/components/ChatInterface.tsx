@@ -42,14 +42,7 @@ export function ChatInterface() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      // The user's instructions mention /api/chat, but their image shows a different path.
-      // Let's assume the root path is correct for now and just fix the method.
-      // The error is 405, Method not allowed. It's posting to the root.
-      // The user prompt shows `...ngrok-free.dev/` which gives a landing page for GET.
-      // A POST to it would likely be a 405.
-      // The user's instructions they pasted had `/api/chat`.
-      // Let's try changing the path to something plausible.
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const response = await fetch(`${API_URL}/`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
@@ -74,7 +67,7 @@ export function ChatInterface() {
       console.error("Failed to fetch AI response:", error);
       const errorMessage: Message = {
           id: Date.now() + 1,
-          text: "Sorry, I'm having trouble connecting to the server.",
+          text: "AI engine not connected in prototype mode",
           sender: "ai",
       };
       setMessages((prev) => [...prev, errorMessage]);
