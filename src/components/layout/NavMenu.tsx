@@ -17,24 +17,30 @@ import {
   Users,
   MessageSquare,
   History,
+  LogIn,
 } from "lucide-react";
+import { useUser } from "@/firebase";
 
 const navItems = [
-  { href: "/", label: "Chat", icon: MessageSquare },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck },
-  { href: "/dns-monitoring", label: "DNS", icon: Network },
-  { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity },
-  { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert },
-  { href: "/social-media-monitoring", label: "Social Media", icon: Users },
+  { href: "/", label: "Chat", icon: MessageSquare, auth: true },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, auth: true },
+  { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck, auth: true },
+  { href: "/dns-monitoring", label: "DNS", icon: Network, auth: true },
+  { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity, auth: true },
+  { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert, auth: true },
+  { href: "/social-media-monitoring", label: "Social Media", icon: Users, auth: true },
+  { href: "/login", label: "Login", icon: LogIn, auth: false },
 ];
 
 export function NavMenu() {
   const pathname = usePathname();
+  const { user } = useUser();
+
+  const filteredNavItems = navItems.filter(item => item.auth ? !!user : !user);
 
   return (
     <SidebarMenu className="p-2">
-      {navItems.map((item) => (
+      {filteredNavItems.map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
             asChild

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   SidebarProvider,
   Sidebar,
@@ -14,18 +14,33 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { NavMenu } from "./NavMenu";
-import { Settings, User, MessageSquare } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Settings, User, MessageSquare, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import Link from "next/link";
 import { ThemeToggle } from "../ThemeToggle";
+import { useAuth, useUser } from "@/firebase";
+import { getAuth, signOut } from "firebase/auth";
+import { Button } from "../ui/button";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+
+  useEffect(() => {
+    if (!isUserLoading && !user && pathname !== "/login") {
+      router.push("/login");
+    }
+  }, [isUserLoading, user, pathname, router]);
+
 
   const getPageTitle = (path: string) => {
     if (path === '/') return "Chat";
     if (path.startsWith('/chat/')) return "Chat";
+    if (path === '/login') return "Login";
     return path
       .substring(1)
       .split('-')
@@ -33,11 +48,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       .join(' ');
   }
 
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/login');
+    }
+  };
+
   const mockRecentChats = [
     { id: '1', title: 'DMARC Policy Analysis' },
     { id: '2', title: 'Suspicious Domain Query' },
     { id: '3', title: 'Latest Phishing Trends' },
   ];
+  
+  if (pathname === '/login') {
+    return <main className="h-full flex-1 overflow-auto">{children}</main>;
+  }
+
+  if (isUserLoading || (!user && pathname !== '/login')) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+        </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -80,9 +114,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             <AvatarFallback><User size={18} /></AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col group-data-[state=collapsed]:hidden">
-                            <span className="text-sm font-medium text-foreground">My Profile</span>
-                            <span className="text-xs text-muted-foreground">user@example.com</span>
+                            <span className="text-sm font-medium text-foreground truncate">{user?.email ?? 'My Profile'}</span>
                         </div>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleLogout} tooltip={{ children: 'Logout', side: 'right', align: 'center' }}>
+                        <LogOut />
+                        <span className="group-data-[state=collapsed]:hidden">Logout</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
