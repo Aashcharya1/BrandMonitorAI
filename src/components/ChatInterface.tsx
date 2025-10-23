@@ -36,31 +36,20 @@ export function ChatInterface() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    const key = input;
     setInput("");
 
-    try {
-      const response = await fetch(`https://cleistogamically-prestricken-noma.ngrok-free.dev/get?key=${key}`);
-      const data = await response.text();
-
-      const aiMessage: Message = {
+    // Simulate AI response
+    const aiMessage: Message = {
         id: Date.now() + 1,
-        text: data,
+        text: `You said: "${userMessage.text}"`,
         sender: "ai",
-      };
-      setMessages((prev) => [...prev, aiMessage]);
+    };
 
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      const errorMessage: Message = {
-        id: Date.now() + 1,
-        text: "Sorry, I couldn't connect to the service.",
-        sender: "ai",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    }
+    setTimeout(() => {
+        setMessages((prev) => [...prev, aiMessage]);
+    }, 1000);
   };
-
+  
   useEffect(() => {
     if (scrollViewportRef.current) {
         scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
