@@ -4,7 +4,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FirebaseClientProvider } from '@/firebase';
-import { ShieldIcon } from '@/components/icons/ShieldIcon';
 
 export const metadata: Metadata = {
   title: 'BrandMonitorAI',

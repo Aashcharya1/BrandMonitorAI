@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { NavMenu } from "./NavMenu";
-import { Settings, User, MessageSquare, LogOut } from "lucide-react";
+import { Settings, User, MessageSquare, LogOut, Shield } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import Link from "next/link";
@@ -22,7 +22,6 @@ import { ThemeToggle } from "../ThemeToggle";
 import { useAuth, useUser } from "@/firebase";
 import { getAuth, signOut } from "firebase/auth";
 import { Button } from "../ui/button";
-import { ShieldIcon } from "../icons/ShieldIcon";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -79,7 +78,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar collapsible="icon" variant="sidebar" side="left">
         <SidebarHeader className="p-2">
             <div className="flex items-center gap-2 p-2">
-              <ShieldIcon className="h-8 w-8 text-primary" />
+              <Shield className="h-8 w-8 text-primary" />
               <h1 className="text-xl font-semibold group-data-[state=collapsed]:hidden">BrandMonitorAI</h1>
             </div>
         </SidebarHeader>
