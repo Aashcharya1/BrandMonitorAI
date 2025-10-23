@@ -24,10 +24,12 @@ export function ChatInterface() {
     }
   ]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
 
   const handleSendMessage = async () => {
     if (input.trim() === "") return;
+    setIsLoading(true);
 
     const userMessage: Message = {
       id: Date.now(),
@@ -38,16 +40,40 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
-    // Simulate AI response
-    const aiMessage: Message = {
-        id: Date.now() + 1,
-        text: `You said: "${userMessage.text}"`,
-        sender: "ai",
-    };
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: input }),
+      });
 
-    setTimeout(() => {
-        setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const aiMessage: Message = {
+          id: Date.now() + 1,
+          text: data.response || "Sorry, I couldn't get a response.",
+          sender: "ai",
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+
+    } catch (error) {
+      console.error("Failed to fetch AI response:", error);
+      const errorMessage: Message = {
+          id: Date.now() + 1,
+          text: "Sorry, I'm having trouble connecting to the server.",
+          sender: "ai",
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   useEffect(() => {
@@ -79,13 +105,23 @@ export function ChatInterface() {
                   "max-w-[80%] rounded-lg p-3 text-sm",
                   message.sender === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    : "bg-card border"
                 )}
               >
                 <p className="leading-relaxed">{message.text}</p>
               </div>
             </div>
           ))}
+          {isLoading && (
+            <div className="flex items-start gap-3 justify-start">
+                <Avatar className="h-8 w-8 border bg-primary text-primary-foreground">
+                    <AvatarFallback><Bot size={16}/></AvatarFallback>
+                </Avatar>
+                <div className="max-w-[80%] rounded-lg p-3 text-sm bg-card border">
+                    <p className="leading-relaxed animate-pulse">...</p>
+                </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
       <div className="pt-4 max-w-4xl mx-auto w-full">
@@ -95,15 +131,16 @@ export function ChatInterface() {
                 placeholder="Ask a question..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
                 className="pr-12 bg-background border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                disabled={isLoading}
             />
             <Button
                 size="icon"
                 variant="ghost"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
                 onClick={handleSendMessage}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isLoading}
             >
                 <SendHorizonal className="h-5 w-5" />
                 <span className="sr-only">Send</span>
