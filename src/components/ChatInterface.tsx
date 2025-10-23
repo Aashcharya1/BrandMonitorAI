@@ -26,7 +26,7 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const scrollViewportRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (input.trim() === "") return;
 
     const userMessage: Message = {
@@ -36,17 +36,29 @@ export function ChatInterface() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const key = input;
     setInput("");
 
-    // Mock AI response
-    setTimeout(() => {
+    try {
+      const response = await fetch(`https://cleistogamically-prestricken-noma.ngrok-free.dev/get?key=${key}`);
+      const data = await response.text();
+
       const aiMessage: Message = {
         id: Date.now() + 1,
-        text: "AI engine not connected in prototype mode.",
+        text: data,
         sender: "ai",
       };
       setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        text: "Sorry, I couldn't connect to the service.",
+        sender: "ai",
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    }
   };
 
   useEffect(() => {
