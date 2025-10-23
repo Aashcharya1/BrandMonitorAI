@@ -38,16 +38,17 @@ export function ChatInterface() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput("");
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/`, {
-          method: 'POST',
+      
+      const response = await fetch(`${API_URL}/?message=${encodeURIComponent(currentInput)}`, {
+          method: 'GET', // Changed from POST to GET
           headers: {
               'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ message: input }),
       });
 
       if (!response.ok) {
