@@ -19,22 +19,20 @@ import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import Link from "next/link";
 import { ThemeToggle } from "../ThemeToggle";
-import { useAuth, useUser } from "@/firebase";
-import { getAuth, signOut } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "../ui/button";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
+  const { user, isLoading, logout } = useAuth();
 
 
   useEffect(() => {
-    if (!isUserLoading && !user && pathname !== "/login") {
+    if (!isLoading && !user && pathname !== "/login") {
       router.push("/login");
     }
-  }, [isUserLoading, user, pathname, router]);
+  }, [isLoading, user, pathname, router]);
 
 
   const getPageTitle = (path: string) => {
@@ -48,11 +46,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       .join(' ');
   }
 
-  const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-      router.push('/login');
-    }
+  const handleLogout = () => {
+    logout();
   };
 
   const mockRecentChats = [
@@ -65,7 +60,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <main className="h-full flex-1 overflow-auto">{children}</main>;
   }
 
-  if (isUserLoading || (!user && pathname !== '/login')) {
+  if (isLoading || (!user && pathname !== '/login')) {
     return (
         <div className="flex h-screen w-screen items-center justify-center">
             <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>

@@ -1,44 +1,41 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { FirebaseClientProvider } from '@/firebase';
+// src/app/layout.tsx
+
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+
+// Import the providers we know you have
+import { ThemeProvider } from '@/components/ThemeProvider'
+import { AuthProvider } from '@/context/AuthContext'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'BrandMonitorAI',
-  description: 'Brand Protection Dashboard',
-};
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="font-body antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <FirebaseClientProvider>
-            <AppLayout>{children}</AppLayout>
-            <Toaster />
-          </FirebaseClientProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+    // Wrap the whole app in the AuthProvider
+    <AuthProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+          >
+            {/* We removed the sidebar for now to fix the error.
+              The main content will just be the children.
+            */}
+            <main className="flex-1">{children}</main>
+          </ThemeProvider>
+        </body>
+      </html>
+    </AuthProvider>
+  )
 }

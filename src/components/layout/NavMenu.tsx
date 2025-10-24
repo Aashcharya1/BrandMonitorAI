@@ -19,7 +19,7 @@ import {
   History,
   LogIn,
 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { href: "/", label: "Chat", icon: MessageSquare, auth: true },
@@ -34,7 +34,7 @@ const navItems = [
 
 export function NavMenu() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const filteredNavItems = navItems.filter(item => item.auth ? !!user : !user);
 

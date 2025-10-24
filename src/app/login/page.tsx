@@ -12,61 +12,72 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const auth = useAuth();
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, register } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleEmailPasswordSignUp = async () => {
+    if (!email || !password) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/');
+      await register(email, password, name);
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been created successfully',
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Sign-up Failed',
-        description: error.message,
+        description: error.message || 'An error occurred during registration',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEmailPasswordSignIn = async () => {
+    if (!email || !password) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/');
+      await login(email, password);
+      toast({
+        title: 'Login Successful',
+        description: 'Welcome back!',
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Sign-in Failed',
-        description: error.message,
+        description: error.message || 'Invalid email or password',
       });
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      router.push('/');
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Google Sign-in Failed',
-        description: error.message,
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -105,15 +116,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <Button onClick={handleEmailPasswordSignIn} className="w-full">
-                Login
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleGoogleSignIn}
+              <Button 
+                onClick={handleEmailPasswordSignIn} 
                 className="w-full"
+                disabled={isLoading}
               >
-                Sign in with Google
+                {isLoading ? 'Signing in...' : 'Login'}
               </Button>
             </CardContent>
           </Card>
@@ -127,6 +135,16 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name">Name (Optional)</Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <Input
@@ -146,15 +164,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <Button onClick={handleEmailPasswordSignUp} className="w-full">
-                Create Account
-              </Button>
-               <Button
-                variant="outline"
-                onClick={handleGoogleSignIn}
+              <Button 
+                onClick={handleEmailPasswordSignUp} 
                 className="w-full"
+                disabled={isLoading}
               >
-                Sign up with Google
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </CardContent>
           </Card>
