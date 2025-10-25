@@ -20,6 +20,8 @@ async function connectDB(): Promise<Connection> {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 2000, // 2 second timeout instead of 30 seconds
+      connectTimeoutMS: 2000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {

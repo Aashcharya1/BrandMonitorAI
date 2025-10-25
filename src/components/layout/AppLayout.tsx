@@ -29,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
-    if (!isLoading && !user && pathname !== "/login") {
+    if (!isLoading && !user && pathname !== "/login" && pathname !== "/register") {
       router.push("/login");
     }
   }, [isLoading, user, pathname, router]);
@@ -56,7 +56,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { id: '3', title: 'Latest Phishing Trends' },
   ];
   
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/register') {
     return <main className="h-full flex-1 overflow-auto">{children}</main>;
   }
 

@@ -23,18 +23,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      // Verify token and get user info
-      verifyToken(token);
-    } else {
-      setIsLoading(false);
+    // Only run on client side after hydration
+    if (typeof window !== 'undefined' && !isInitialized) {
+      setIsInitialized(true);
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        // Verify token and get user info
+        verifyToken(token);
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [isInitialized]);
 
   const verifyToken = async (token: string) => {
     try {
@@ -55,8 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Token verification failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -64,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshToken = async () => {
     try {
+      if (typeof window === 'undefined') {
+        setIsLoading(false);
+        return;
+      }
+      
       const refreshTokenValue = localStorage.getItem('refreshToken');
       if (!refreshTokenValue) {
         setIsLoading(false);
@@ -80,8 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
         
         // Get user info with new token
         const userResponse = await fetch('/api/auth/me', {
@@ -96,14 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         // Refresh failed, clear tokens
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
         setUser(null);
       }
     } catch (error) {
       console.error('Token refresh failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -112,61 +130,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      // Add timeout to prevent long waits
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
         setUser(data.user);
-        router.push('/');
+        // Use window.location for navigation to avoid hydration issues
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       } else {
         const error = await response.json();
         throw new Error(error.message || 'Login failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
+      if (error.name === 'AbortError') {
+        throw new Error('Login request timed out. Please try again.');
+      }
       throw error;
     }
   };
 
   const register = async (email: string, password: string, name?: string) => {
     try {
+      // Add timeout to prevent long waits
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password, name }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
         setUser(data.user);
-        router.push('/');
+        // Use window.location for navigation to avoid hydration issues
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       } else {
         const error = await response.json();
         throw new Error(error.message || 'Registration failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration failed:', error);
+      if (error.name === 'AbortError') {
+        throw new Error('Registration request timed out. Please try again.');
+      }
       throw error;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
     setUser(null);
-    router.push('/login');
+    // Use window.location for navigation to avoid hydration issues
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   return (

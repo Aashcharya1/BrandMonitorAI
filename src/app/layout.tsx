@@ -6,7 +6,8 @@ import './globals.css'
 
 // Import the providers we know you have
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { AuthProvider } from '@/context/AuthContext'
+import { ClientAuthProvider } from '@/components/ClientAuthProvider'
+import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,22 +21,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    // Wrap the whole app in the AuthProvider
-    <AuthProvider>
-      <html lang="en">
-        <body className={inter.className}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-          >
-            {/* We removed the sidebar for now to fix the error.
-              The main content will just be the children.
-            */}
-            <main className="flex-1">{children}</main>
-          </ThemeProvider>
-        </body>
-      </html>
-    </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ClientAuthProvider>
+            {children}
+          </ClientAuthProvider>
+          <Toaster />
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }

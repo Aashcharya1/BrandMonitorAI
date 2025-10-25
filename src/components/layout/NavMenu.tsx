@@ -29,7 +29,7 @@ const navItems = [
   { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity, auth: true },
   { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert, auth: true },
   { href: "/social-media-monitoring", label: "Social Media", icon: Users, auth: true },
-  { href: "/login", label: "Login", icon: LogIn, auth: false },
+  { href: "/login-otp", label: "Login", icon: LogIn, auth: false },
 ];
 
 export function NavMenu() {

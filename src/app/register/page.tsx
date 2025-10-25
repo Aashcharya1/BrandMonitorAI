@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Mail, Lock } from 'lucide-react';
+import { Shield, Mail, UserPlus } from 'lucide-react';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -40,8 +40,8 @@ export default function LoginPage() {
           title: 'OTP Sent',
           description: 'Please check your email for the 6-digit OTP code. (Check console for development mode)',
         });
-        // Redirect to OTP verification page
-        router.push(`/login-otp?email=${encodeURIComponent(email)}`);
+        // Redirect to OTP verification page for registration
+        router.push(`/register-otp?email=${encodeURIComponent(email)}`);
       } else {
         toast({
           variant: 'destructive',
@@ -66,11 +66,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Shield className="h-12 w-12 text-primary" />
+            <UserPlus className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
-            Enter your email address to receive a secure login code
+            Enter your email address to get started with a secure verification code
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -95,18 +95,18 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full"
           >
-            {isLoading ? 'Sending...' : 'Send Login Code'}
+            {isLoading ? 'Sending...' : 'Send Verification Code'}
           </Button>
 
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Button 
                 variant="link" 
                 className="p-0 h-auto"
-                onClick={() => router.push('/register')}
+                onClick={() => router.push('/login')}
               >
-                Sign up here
+                Sign in here
               </Button>
             </p>
           </div>
