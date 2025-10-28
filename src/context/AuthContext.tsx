@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 
 interface User {
   id: string;
@@ -25,21 +26,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
 
-  // Check for existing token on mount
+  // Sync NextAuth session with our auth state
   useEffect(() => {
-    // Only run on client side after hydration
-    if (typeof window !== 'undefined' && !isInitialized) {
-      setIsInitialized(true);
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        // Verify token and get user info
-        verifyToken(token);
+    if (status === 'loading') {
+      setIsLoading(true);
+      return;
+    }
+
+    if (session?.user) {
+      setUser({
+        id: session.user.id as string,
+        email: session.user.email as string,
+        name: session.user.name as string,
+      });
+      setIsLoading(false);
+    } else {
+      // Check for existing token on mount (for non-OAuth users)
+      if (typeof window !== 'undefined' && !isInitialized) {
+        setIsInitialized(true);
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          // Verify token and get user info
+          verifyToken(token);
+        } else {
+          setIsLoading(false);
+        }
       } else {
+        setUser(null);
         setIsLoading(false);
       }
     }
-  }, [isInitialized]);
+  }, [session, status, isInitialized]);
 
   const verifyToken = async (token: string) => {
     try {
@@ -210,15 +229,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    }
-    setUser(null);
-    // Use window.location for navigation to avoid hydration issues
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+  const logout = async () => {
+    // If user is logged in via OAuth, use NextAuth signOut
+    if (session?.user) {
+      await signOut({ callbackUrl: '/login' });
+    } else {
+      // For JWT users, clear tokens
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+      setUser(null);
+      // Use window.location for navigation to avoid hydration issues
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   };
 

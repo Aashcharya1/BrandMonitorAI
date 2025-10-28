@@ -104,10 +104,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                     <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
                         <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8">
-                            <AvatarFallback><User size={18} /></AvatarFallback>
+                            <AvatarFallback>
+                              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : <User size={18} />}
+                            </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col group-data-[state=collapsed]:hidden">
-                            <span className="text-sm font-medium text-foreground truncate">{user?.email ?? 'My Profile'}</span>
+                            <span className="text-sm font-medium text-foreground truncate">{user?.name ?? 'User'}</span>
+                            <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
                         </div>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

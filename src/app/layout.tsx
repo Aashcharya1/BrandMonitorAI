@@ -7,6 +7,7 @@ import './globals.css'
 // Import the providers we know you have
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ClientAuthProvider } from '@/components/ClientAuthProvider'
+import { NextAuthProvider } from '@/components/NextAuthProvider'
 import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -23,17 +24,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ClientAuthProvider>
-            {children}
-          </ClientAuthProvider>
-          <Toaster />
-        </ThemeProvider>
+        <NextAuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ClientAuthProvider>
+              {children}
+            </ClientAuthProvider>
+            <Toaster />
+          </ThemeProvider>
+        </NextAuthProvider>
       </body>
     </html>
   )

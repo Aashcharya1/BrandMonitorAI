@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
     const { email, password, name } = await request.json();
 
         // Validate input
-        if (!email || !password) {
+        if (!email || !password || !name) {
           return NextResponse.json(
-            { message: 'Email and password are required' },
+            { message: 'Name, email and password are required' },
             { status: 400 }
           );
         }

@@ -5,7 +5,6 @@ import User from '@/models/User';
 import { generateTokenPair } from '@/lib/jwt';
 
 // Simple in-memory storage for development fallback
-// Using global to persist across requests
 declare global {
   var __users: Map<string, any>;
 }
@@ -101,6 +100,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
       },
     });
+
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
