@@ -1,10 +1,10 @@
-# 🔐 OTP-Based Authentication System Setup Guide
+ # 🔐 OTP-Based Registration & Password Login
 
-## ✅ **Modern OTP Authentication Implemented!**
+## ✅ **Hybrid Authentication Implemented!**
 
 ### **What's Been Implemented:**
 
-I've created a complete OTP-based authentication system that follows modern security practices:
+I've implemented a hybrid authentication system combining OTP-based registration with traditional password login.
 
 1. **✅ User Model Updates**
    - Added OTP fields: `otpHash`, `otpExpiresAt`, `otpVerified`
@@ -28,11 +28,10 @@ I've created a complete OTP-based authentication system that follows modern secu
    - `/api/auth/verify-otp` - Verify OTP code
    - `/api/auth/set-password` - Set password after OTP verification
 
-5. **✅ User Interface**
-   - Multi-step registration flow
-   - OTP verification page
-   - Password setup page
-   - Success confirmation
+5. **✅ UI Flows**
+   - **Registration**: Multi-step flow at `/register-otp`.
+   - **Login**: Standard email/password form at `/login`.
+   - Clear success and error notifications for all actions.
 
 ## 🚀 **How It Works:**
 
@@ -42,7 +41,12 @@ I've created a complete OTP-based authentication system that follows modern secu
 3. **Verify OTP** → User enters OTP code from email
 4. **Set Password** → User creates secure password
 5. **Complete** → Account created and ready to use
-
+ 
+### **Login Flow:**
+1. **Enter Credentials** → User enters email and password at `/login`
+2. **Verify** → System checks credentials against the database
+3. **Login Success** → User is logged in
+ 
 ### **Security Features:**
 - **6-digit OTP** with 5-minute expiration
 - **Secure hashing** of OTPs and passwords
@@ -50,7 +54,7 @@ I've created a complete OTP-based authentication system that follows modern secu
 - **Email verification** through OTP confirmation
 - **Password strength** validation
 
-## 🔧 **Setup Instructions:**
+## 🔧 **Setup Instructions**
 
 ### **1. Configure EmailJS (Required):**
 
@@ -90,6 +94,9 @@ NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your-public-key-here
 
 # App URL
 NEXTAUTH_URL=http://localhost:9002
+
+# MongoDB Connection
+MONGODB_URI=your-mongodb-connection-string
 ```
 
 ### **3. Restart the Server:**

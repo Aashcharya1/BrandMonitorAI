@@ -17,9 +17,7 @@ const testEmailValidation = async () => {
     { email: '', shouldPass: false, description: 'Empty email' },
     { email: 'user@', shouldPass: false, description: 'Incomplete email' },
   ];
-  
   console.log('\n📧 Testing Email Format Validation:');
-  
   for (const testCase of testCases) {
     try {
       const response = await fetch('http://localhost:9002/api/auth/login', {
