@@ -180,6 +180,7 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
                 onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
+                disabled={isOAuth}
               />
             </div>
           </div>

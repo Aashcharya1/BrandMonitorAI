@@ -16,7 +16,7 @@ import {
 import { NavMenu } from "./NavMenu";
 import { Settings, User, MessageSquare, LogOut, Shield } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import Link from "next/link";
 import { ThemeToggle } from "../ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
@@ -119,7 +119,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarMenu className="p-2">
                 <SidebarMenuItem>
                     <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center hover:bg-gray-800">
-                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 border border-border">
+                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 border border-border overflow-hidden">
+                            <AvatarImage
+                              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || (user?.email?.split('@')[0] ?? 'User'))}&background=16a34a&color=ffffff&size=64&rounded=true`}
+                              alt={displayName || 'User'}
+                            />
                             <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                               {displayName
                                 ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
