@@ -116,8 +116,14 @@ const handler = NextAuth({
         }
 
         try {
-          // For OAuth, we'll use in-memory storage to avoid any DB connection issues
-          const useMongoDB = false; // Force in-memory for now
+          // Try to connect to MongoDB, fallback to in-memory storage
+          let useMongoDB = true;
+          try {
+            await connectDB();
+          } catch (error) {
+            console.warn('MongoDB not available, using in-memory storage:', error);
+            useMongoDB = false;
+          }
 
           // Check if user exists
           let existingUser;
@@ -128,54 +134,61 @@ const handler = NextAuth({
           }
 
           if (!existingUser) {
-            // Create new user for OAuth
-            const newUser = {
+            // For new OAuth users, create a temporary user entry
+            console.log('New OAuth user detected, creating temporary entry:', user.email);
+            
+            const tempUser = {
               email: user.email,
               name: user.name || 'User',
               emailVerified: true,
               emailVerifiedAt: new Date(),
               refreshTokens: [],
-              // No password for OAuth users
+              isOAuthUser: true,
+              needsPasswordSetup: true,
+              oauthProvider: account?.provider,
             };
 
             if (useMongoDB) {
-              const mongoUser = new User(newUser);
+              const mongoUser = new User(tempUser);
               await mongoUser.save();
-              user.id = mongoUser._id.toString();
-              console.log('OAuth user created in MongoDB:', user.email);
+              (user as any).id = mongoUser._id.toString();
+              console.log('Temporary OAuth user created in MongoDB:', user.email);
             } else {
-              newUser.id = Date.now().toString();
-              users.set(user.email, newUser);
-              user.id = newUser.id;
-              console.log('OAuth user created in memory:', user.email);
+              (tempUser as any).id = Date.now().toString();
+              users.set(user.email, tempUser);
+              (user as any).id = (tempUser as any).id;
+              console.log('Temporary OAuth user created in memory:', user.email);
             }
           } else {
             // Update existing user info
             if (useMongoDB) {
               existingUser.name = user.name || existingUser.name;
               existingUser.emailVerified = true;
+              existingUser.oauthProvider = account?.provider;
               await existingUser.save();
-              user.id = existingUser._id.toString();
+              (user as any).id = existingUser._id.toString();
               console.log('OAuth user updated in MongoDB:', user.email);
             } else {
               existingUser.name = user.name || existingUser.name;
               existingUser.emailVerified = true;
+              existingUser.oauthProvider = account?.provider;
               users.set(user.email, existingUser);
-              user.id = existingUser.id;
+              (user as any).id = (existingUser as any).id;
               console.log('OAuth user updated in memory:', user.email);
             }
           }
 
           return true;
         } catch (error) {
-          console.error('OAuth sign in error:', error);
+          console.error('OAuth sign in error (non-blocking):', error);
           console.error('Error details:', {
             message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
             provider: account?.provider,
             userEmail: user.email
           });
-          return false;
+          // Do not block sign-in on transient errors; allow redirect to proceed
+          return true;
         }
       }
       console.log('Non-OAuth sign in, allowing');
@@ -183,26 +196,80 @@ const handler = NextAuth({
     },
     async jwt({ token, user, account }) {
       if (user) {
-        token.id = user.id;
+        token.id = (user as any).id;
         token.email = user.email;
         token.name = user.name;
-        token.emailVerified = user.emailVerified;
+        token.emailVerified = (user as any).emailVerified;
+        
+        // Add OAuth user flags
+        if (account?.provider === 'google' || account?.provider === 'github') {
+          // Always check MongoDB first for OAuth users
+          try {
+            const mongoUser = await User.findOne({ email: user.email });
+            if (mongoUser) {
+              token.isOAuthUser = mongoUser.isOAuthUser;
+              token.needsPasswordSetup = mongoUser.needsPasswordSetup;
+              token.oauthProvider = mongoUser.oauthProvider;
+              
+              // Sync with in-memory storage
+              const users = global.__users;
+              users.set(user.email!, {
+                id: mongoUser._id.toString(),
+                email: mongoUser.email,
+                name: mongoUser.name,
+                isOAuthUser: mongoUser.isOAuthUser,
+                needsPasswordSetup: mongoUser.needsPasswordSetup,
+                oauthProvider: mongoUser.oauthProvider
+              });
+              
+              console.log('JWT - OAuth user flags set from MongoDB:', {
+                email: user.email,
+                isOAuthUser: mongoUser.isOAuthUser,
+                needsPasswordSetup: mongoUser.needsPasswordSetup
+              });
+            }
+          } catch (error) {
+            console.error('Error checking MongoDB for OAuth user in JWT:', error);
+            // Fallback to in-memory storage
+            const users = global.__users;
+            const existingUser = users.get(user.email || '');
+            if (existingUser) {
+              token.isOAuthUser = existingUser.isOAuthUser;
+              token.needsPasswordSetup = existingUser.needsPasswordSetup;
+              token.oauthProvider = existingUser.oauthProvider;
+            }
+          }
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
+      if (token && session.user) {
+        (session.user as any).id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
-        session.user.emailVerified = token.emailVerified as boolean;
+        (session.user as any).emailVerified = token.emailVerified as boolean;
+        (session.user as any).isOAuthUser = token.isOAuthUser as boolean;
+        (session.user as any).needsPasswordSetup = token.needsPasswordSetup as boolean;
+        (session.user as any).oauthProvider = token.oauthProvider as string;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // If it's a relative URL, make it absolute
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      // If it's the same origin, allow it
+      if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      // For OAuth redirects, we'll handle this in the signIn callback
+      return url;
     },
   },
   pages: {
     signIn: '/login',
-    signUp: '/register',
   },
   secret: process.env.NEXTAUTH_SECRET,
 })

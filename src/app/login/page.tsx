@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Mail, Lock, Github } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -21,9 +22,9 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      await signIn('google', { 
-        callbackUrl: '/',
-        redirect: true 
+      await signIn('google', {
+        callbackUrl: '/api/auth/oauth-callback',
+        redirect: true,
       });
     } catch (error) {
       toast({
@@ -36,9 +37,9 @@ export default function LoginPage() {
 
   const handleGithubLogin = async () => {
     try {
-      await signIn('github', { 
-        callbackUrl: '/',
-        redirect: true 
+      await signIn('github', {
+        callbackUrl: '/api/auth/oauth-callback',
+        redirect: true,
       });
     } catch (error) {
       toast({
@@ -73,7 +74,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
-      // login handles redirect to '/'
+      // login function handles redirect to localhost:9002
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -118,9 +119,8 @@ export default function LoginPage() {
             <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

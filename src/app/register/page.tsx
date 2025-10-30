@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Lock, UserPlus, User, Github } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -16,16 +18,28 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [isOAuth, setIsOAuth] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { register } = useAuth();
+  const { register, login } = useAuth();
+
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    const nameParam = searchParams.get('name');
+    const oauth = searchParams.get('oauth');
+
+    if (emailParam) setEmail(emailParam);
+    if (nameParam) setName(nameParam);
+    setIsOAuth(oauth === 'true');
+  }, [searchParams]);
 
   const handleGoogleRegister = async () => {
     try {
-      await signIn('google', { 
-        callbackUrl: '/',
-        redirect: true 
+      await signIn('google', {
+        callbackUrl: '/api/auth/oauth-callback',
+        redirect: true,
       });
     } catch (error) {
       toast({
@@ -38,9 +52,9 @@ export default function RegisterPage() {
 
   const handleGithubRegister = async () => {
     try {
-      await signIn('github', { 
-        callbackUrl: '/',
-        redirect: true 
+      await signIn('github', {
+        callbackUrl: '/api/auth/oauth-callback',
+        redirect: true,
       });
     } catch (error) {
       toast({
@@ -91,8 +105,29 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await register(email, password, name);
-      // register handles redirect to '/'
+      if (isOAuth) {
+        // Complete registration for OAuth users by updating the temp user
+        const response = await fetch('/api/auth/oauth-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name, password }),
+        });
+
+        if (response.ok) {
+          // Immediately sign in to create session/tokens, then redirect
+          await login(email, password);
+          return;
+        }
+
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Registration failed');
+      } else {
+        await register(email, password, name);
+        // Ensure immediate navigation to app root after successful registration
+        if (typeof window !== 'undefined') {
+          window.location.href = 'http://localhost:9002/';
+        }
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -153,9 +188,8 @@ export default function RegisterPage() {
             <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -168,9 +202,8 @@ export default function RegisterPage() {
             <Label htmlFor="confirmPassword">Confirm Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 placeholder="Re-enter your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

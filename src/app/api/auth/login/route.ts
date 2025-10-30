@@ -69,8 +69,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If this is an OAuth-only user (no password yet), block password login gracefully
+    if (!user.password) {
+      return NextResponse.json(
+        { message: 'This account uses Google/GitHub sign-in. If you are a new OAuth user, complete registration to set a password.' },
+        { status: 400 }
+      );
+    }
+
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password as string);
     if (!isPasswordValid) {
       return NextResponse.json(
         { message: 'Invalid email or password' },

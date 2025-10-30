@@ -28,40 +28,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  // Sync NextAuth session with our auth state
+  // Check for existing token on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isInitialized) {
+      setIsInitialized(true);
+      // Clear any existing user state first
+      setUser(null);
+      
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        // Verify token and get user info
+        verifyToken(token);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  }, [isInitialized]);
+
+  // Clear user state when session changes (for OAuth users)
+  useEffect(() => {
+    if (status === 'unauthenticated' && session === null) {
+      setUser(null);
+      setIsLoading(false);
+    }
+  }, [session, status]);
+
+  // Sync NextAuth session with our auth state (only for OAuth users)
   useEffect(() => {
     if (status === 'loading') {
-      setIsLoading(true);
       return;
     }
 
     if (session?.user) {
       setUser({
-        id: session.user.id as string,
+        id: (session.user as any).id as string,
         email: session.user.email as string,
         name: session.user.name as string,
       });
       setIsLoading(false);
-    } else {
-      // Check for existing token on mount (for non-OAuth users)
-      if (typeof window !== 'undefined' && !isInitialized) {
-        setIsInitialized(true);
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-          // Verify token and get user info
-          verifyToken(token);
-        } else {
-          setIsLoading(false);
-        }
-      } else {
-        setUser(null);
-        setIsLoading(false);
-      }
     }
-  }, [session, status, isInitialized]);
+  }, [session, status]);
 
   const verifyToken = async (token: string) => {
     try {
+      console.log('Verifying token for user...');
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: {
@@ -72,8 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const userData = await response.json();
+        console.log('Token verification successful, user data:', userData.user);
         setUser(userData.user);
       } else {
+        console.log('Token verification failed, trying to refresh...');
         // Token is invalid, try to refresh
         await refreshToken();
       }
@@ -149,6 +161,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      // Clear any existing user data before login
+      setUser(null);
+      
       // Add timeout to prevent long waits
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -171,9 +186,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
         setUser(data.user);
+        console.log('Login successful for user:', data.user);
         // Use window.location for navigation to avoid hydration issues
         if (typeof window !== 'undefined') {
-          window.location.href = '/';
+          console.log('Login successful, redirecting to localhost:9002');
+          // Add a small delay to ensure state is updated
+          setTimeout(() => {
+            window.location.href = 'http://localhost:9002/';
+          }, 100);
         }
       } else {
         const error = await response.json();
@@ -190,6 +210,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (email: string, password: string, name?: string) => {
     try {
+      // Clear any existing user data before registration
+      setUser(null);
+      
       // Add timeout to prevent long waits
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -212,9 +235,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
         setUser(data.user);
+        console.log('Registration successful for user:', data.user);
         // Use window.location for navigation to avoid hydration issues
         if (typeof window !== 'undefined') {
-          window.location.href = '/';
+          console.log('Registration successful, redirecting to localhost:9002');
+          // Add a small delay to ensure state is updated
+          setTimeout(() => {
+            window.location.href = 'http://localhost:9002/';
+          }, 100);
         }
       } else {
         const error = await response.json();
@@ -230,6 +258,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Clear user state immediately
+    setUser(null);
+    
     // If user is logged in via OAuth, use NextAuth signOut
     if (session?.user) {
       await signOut({ callbackUrl: '/login' });
@@ -239,7 +270,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
       }
-      setUser(null);
       // Use window.location for navigation to avoid hydration issues
       if (typeof window !== 'undefined') {
         window.location.href = '/login';

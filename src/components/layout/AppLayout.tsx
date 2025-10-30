@@ -26,11 +26,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
+  // Compute a robust display name (prefer DB name; otherwise title-case email local-part)
+  const computeTitleCase = (value: string) =>
+    value
+      .split(/[._-]/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+  const displayName = (user?.name && user.name.trim().length > 0)
+    ? user.name
+    : (user?.email ? computeTitleCase(user.email.split('@')[0]) : '');
+
 
 
   useEffect(() => {
-    if (!isLoading && !user && pathname !== "/login" && pathname !== "/register") {
-      router.push("/login");
+    if (!isLoading && !user) {
+      const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/oauth-register";
+      // Do not redirect from root immediately; allow session to hydrate
+      if (!isAuthPage && pathname !== "/") {
+        router.push("/login");
+      }
     }
   }, [isLoading, user, pathname, router]);
 
@@ -56,11 +72,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { id: '3', title: 'Latest Phishing Trends' },
   ];
   
-  if (pathname === '/login' || pathname === '/register') {
+  if (pathname === '/login' || pathname === '/register' || pathname === '/set-password' || pathname === '/oauth-register') {
     return <main className="h-full flex-1 overflow-auto">{children}</main>;
   }
 
-  if (isLoading || (!user && pathname !== '/login')) {
+  if (isLoading || (!user && pathname !== '/login' && pathname !== '/register' && pathname !== '/' && pathname !== '/oauth-register')) {
     return (
         <div className="flex h-screen w-screen items-center justify-center">
             <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
@@ -99,31 +115,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </div>
         </SidebarContent>
-        <SidebarFooter className="p-0">
+        <SidebarFooter className="p-0 bg-gray-900 dark:bg-gray-900 border-t border-gray-700">
             <SidebarMenu className="p-2">
                 <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center">
-                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8">
-                            <AvatarFallback>
-                              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : <User size={18} />}
+                    <SidebarMenuButton tooltip={{ children: 'My Profile', side: 'right', align: 'center' }} className="h-auto p-2 justify-start group-data-[state=collapsed]:h-10 group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:p-0 group-data-[state=collapsed]:justify-center hover:bg-gray-800">
+                        <Avatar className="h-8 w-8 group-data-[state=collapsed]:h-8 group-data-[state=collapsed]:w-8 border border-border">
+                            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                              {displayName
+                                ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                                : <User size={18} />}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col group-data-[state=collapsed]:hidden">
-                            <span className="text-sm font-medium text-foreground truncate">{user?.name ?? 'User'}</span>
-                            <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+                            <span className="text-sm font-medium text-white truncate">{displayName || 'User'}</span>
+                            <span className="text-xs text-gray-300 truncate">{user?.email}</span>
                         </div>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={handleLogout} tooltip={{ children: 'Logout', side: 'right', align: 'center' }}>
-                        <LogOut />
-                        <span className="group-data-[state=collapsed]:hidden">Logout</span>
+                    <SidebarMenuButton onClick={handleLogout} tooltip={{ children: 'Logout', side: 'right', align: 'center' }} className="text-white hover:bg-gray-800">
+                        <LogOut className="text-white" />
+                        <span className="group-data-[state=collapsed]:hidden text-white">Logout</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
-                        <Settings />
-                        <span className="group-data-[state=collapsed]:hidden">Settings</span>
+                    <SidebarMenuButton tooltip={{ children: 'Settings', side: 'right', align: 'center' }} className="text-white hover:bg-gray-800">
+                        <Settings className="text-white" />
+                        <span className="group-data-[state=collapsed]:hidden text-white">Settings</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>

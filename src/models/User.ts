@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, "Please provide a password"],
+        required: function(this: any) {
+            return !this.isOAuthUser;
+        },
         minlength: 6,
     },
     name: {
@@ -27,6 +29,19 @@ const userSchema = new mongoose.Schema({
     refreshTokens: [{
         type: String,
     }],
+    isOAuthUser: {
+        type: Boolean,
+        default: false,
+    },
+    needsPasswordSetup: {
+        type: Boolean,
+        default: false,
+    },
+    oauthProvider: {
+        type: String,
+        enum: ['google', 'github', null],
+        default: null,
+    },
 }, {
     timestamps: true, // Adds createdAt and updatedAt
 });
