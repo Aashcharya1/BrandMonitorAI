@@ -1,0 +1,1046 @@
+import os
+import json
+import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from typing import List, Dict, Any
+import requests
+from elasticsearch import Elasticsearch, helpers
+from meilisearch import Client as MeiliClient
+from celery_app import celery_app
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Elasticsearch
+ES_URL = os.getenv('ES_URL')
+ES_API_KEY = os.getenv('ES_API_KEY')
+ASSET_INDEX = os.getenv('ES_ASSET_INDEX', 'assets')
+
+# Meilisearch
+MEILI_URL = os.getenv('MEILI_URL')
+MEILI_KEY = os.getenv('MEILI_KEY')
+MEILI_INDEX = os.getenv('MEILI_INDEX', 'assets_search')
+
+# Nessus
+NESSUS_URL = os.getenv('NESSUS_URL', 'https://localhost:8834')
+NESSUS_ACCESS_KEY = os.getenv('NESSUS_ACCESS_KEY')
+NESSUS_SECRET_KEY = os.getenv('NESSUS_SECRET_KEY')
+
+# Initialize clients (make Elasticsearch optional for initial setup)
+es = None
+if ES_URL and ES_API_KEY:
+	try:
+		es = Elasticsearch(ES_URL, api_key=ES_API_KEY, verify_certs=False)  # Set verify_certs=True in production
+		logger.info("Elasticsearch client initialized")
+	except Exception as e:
+		logger.warning(f"Elasticsearch initialization failed: {e}")
+		es = None
+else:
+	logger.info("ES_URL and ES_API_KEY not configured. Elasticsearch indexing disabled. (Elasticsearch is optional)")
+
+meili = MeiliClient(MEILI_URL, MEILI_KEY) if MEILI_URL and MEILI_KEY else None
+
+# Ensure index mapping exists (only if Elasticsearch is configured)
+if es:
+	try:
+		if not es.indices.exists(index=ASSET_INDEX):
+			es.indices.create(index=ASSET_INDEX, mappings={
+				'properties': {
+					'@timestamp': {'type': 'date'},
+					'scan_id': {'type': 'keyword'},
+					'asset': {
+						'properties': {
+							'domain': {'type': 'keyword'},
+							'hostname': {'type': 'keyword'},
+							'ip': {'type': 'ip'}
+						}
+					},
+					'services': {
+						'type': 'nested',
+						'properties': {
+							'port': {'type': 'integer'},
+							'protocol': {'type': 'keyword'},
+							'name': {'type': 'keyword'},
+							'version': {'type': 'keyword'}
+						}
+					},
+					'vulnerabilities': {
+						'type': 'nested',
+						'properties': {
+							'plugin_id': {'type': 'keyword'},
+							'name': {'type': 'text'},
+							'severity': {'type': 'keyword'},
+							'cvss_score': {'type': 'float'},
+							'cve': {'type': 'keyword'}
+						}
+					}
+				}
+			})
+			logger.info(f"Elasticsearch index '{ASSET_INDEX}' created")
+	except Exception as e:
+		logger.warning(f"Elasticsearch index creation failed: {e}")
+
+def bulk_index_assets(documents: List[Dict[str, Any]]):
+	"""Index documents to Elasticsearch and optionally Meilisearch."""
+	if es:
+		try:
+			actions = [{'_index': ASSET_INDEX, '_source': doc} for doc in documents]
+			helpers.bulk(es, actions)
+			logger.info(f"Indexed {len(documents)} documents to Elasticsearch")
+		except Exception as e:
+			logger.error(f"Elasticsearch indexing error: {e}")
+			# Don't raise - allow scan to complete even if indexing fails
+	else:
+		# Only log once at DEBUG level - Elasticsearch is optional
+		logger.debug("Elasticsearch not configured. Skipping indexing. (Optional - configure ES_URL and ES_API_KEY in .env to enable)")
+	
+	# Meilisearch indexing (flattened for search)
+	if meili:
+		try:
+			# Flatten documents for Meilisearch
+			flat_docs = []
+			for doc in documents:
+				flat = {
+					'scan_id': doc.get('scan_id'),
+					'domain': doc.get('asset', {}).get('domain'),
+					'hostname': doc.get('asset', {}).get('hostname'),
+					'ip': doc.get('asset', {}).get('ip'),
+					'services': json.dumps(doc.get('services', [])),
+					'vulnerabilities': json.dumps(doc.get('vulnerabilities', []))
+				}
+				flat_docs.append(flat)
+			meili.index(MEILI_INDEX).add_documents(flat_docs, primary_key='scan_id')
+			logger.info(f"Indexed {len(flat_docs)} documents to Meilisearch")
+		except Exception as e:
+			logger.warning(f"Meilisearch indexing error: {e}")
+
+@celery_app.task(name='scan.passive', bind=True)
+def passive_scan(self, domain: str) -> Dict[str, Any]:
+	"""
+	Passive reconnaissance: enumerate subdomains using amass.
+	Returns: {'domain': str, 'subdomains': List[str], 'ips': Dict[str, str]}
+	"""
+	logger.info(f"Starting passive scan for {domain}")
+	subdomains = set()
+	host_to_ip = {}
+	
+	# Try amass first
+	try:
+		with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
+			tmp_path = tmp.name
+		
+		# Run amass enum
+		result = subprocess.run(
+			['amass', 'enum', '-d', domain, '-json', tmp_path],
+			capture_output=True,
+			text=True,
+			timeout=300
+		)
+		
+		if result.returncode == 0 and os.path.exists(tmp_path):
+			with open(tmp_path, 'r') as f:
+				for line in f:
+					try:
+						data = json.loads(line.strip())
+						if data.get('name'):
+							subdomains.add(data['name'])
+							if data.get('addresses'):
+								for addr in data['addresses']:
+									if addr.get('ip'):
+										host_to_ip[data['name']] = addr['ip']
+					except json.JSONDecodeError:
+						continue
+			os.unlink(tmp_path)
+	except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+		logger.warning(f"amass not available or failed: {e}")
+		# Fallback: Use DNS resolution to find subdomains
+		try:
+			import socket
+			# Try to resolve common subdomains
+			common_subs = ['www', 'api', 'mail', 'ftp', 'admin', 'test', 'dev', 'staging']
+			for sub in common_subs:
+				try:
+					test_domain = f"{sub}.{domain}"
+					socket.gethostbyname(test_domain)
+					subdomains.add(test_domain)
+				except socket.gaierror:
+					pass
+			# Always include root domain
+			subdomains.add(domain)
+		except Exception:
+			# Final fallback: just use root domain
+			subdomains.add(domain)
+	
+	subdomains = list(subdomains)
+	if not subdomains:
+		subdomains = [domain]  # At least scan the root domain
+	
+	logger.info(f"Passive scan found {len(subdomains)} subdomains")
+	return {
+		'domain': domain,
+		'subdomains': subdomains,
+		'host_to_ip': host_to_ip
+	}
+
+@celery_app.task(name='scan.active', bind=True)
+def active_scan(self, hosts: List[str], host_to_ip: Dict[str, str] = None, 
+                port_range: str = None, scan_intensity: str = "normal",
+                max_threads: int = 10, timeout: int = 3600) -> List[Dict[str, Any]]:
+	"""
+	Active scanning: port discovery with masscan, then service detection with nmap.
+	Returns: List of service dictionaries.
+	"""
+	if not hosts:
+		return []
+	
+	logger.info(f"Starting active scan for {len(hosts)} hosts")
+	services = []
+	host_to_ip = host_to_ip or {}
+	
+	# Check if masscan is available (cache the result to avoid repeated checks)
+	masscan_available = None
+	masscan_check_logged = False  # Track if we've already logged the check result
+	
+	for host in hosts:
+		target_ip = host_to_ip.get(host, host)
+		
+		# Step 1: Quick port scan with masscan (if available)
+		open_ports = []
+		masscan_used = False
+		
+		# Check if masscan is available (only check once)
+		if masscan_available is None:
+			try:
+				# First, try to find masscan in PATH using 'where' (Windows) or 'which' (Unix)
+				import shutil
+				masscan_path = shutil.which('masscan')
+				
+				if masscan_path:
+					# Try to run masscan --version to verify it works
+					result_check = subprocess.run(
+						[masscan_path, '--version'],
+						capture_output=True,
+						text=True,
+						timeout=5
+					)
+					masscan_available = result_check.returncode == 0
+					if masscan_available and not masscan_check_logged:
+						logger.debug(f"masscan found at {masscan_path}")
+				else:
+					masscan_available = False
+					
+			except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError, Exception) as e:
+				masscan_available = False
+				# Don't log - might just be permission issue or PATH issue
+			
+			# Only log once if masscan is not available
+			if not masscan_available and not masscan_check_logged:
+				masscan_check_logged = True
+				logger.debug("masscan not found in PATH or not executable - using common ports list (this is normal)")
+		
+		# Only try to use masscan if it's available
+		if masscan_available:
+			try:
+				with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
+					tmp_path = tmp.name
+				
+				# Run masscan for common ports
+				# Note: masscan requires admin privileges on Windows
+				result = subprocess.run(
+					['masscan', target_ip, '-p1-1000', '--rate=1000', '-oJ', tmp_path],
+					capture_output=True,
+					text=True,
+					timeout=60
+				)
+				
+				if result.returncode == 0 and os.path.exists(tmp_path):
+					with open(tmp_path, 'r') as f:
+						content = f.read()
+						if content.strip():  # Check if file has content
+							for line in content.splitlines():
+								if line.strip().startswith('{'):
+									try:
+										data = json.loads(line.strip())
+										if data.get('ports'):
+											for port_info in data['ports']:
+												port_num = port_info.get('port')
+												if port_num:
+													open_ports.append(str(port_num))
+									except json.JSONDecodeError:
+										continue
+					if os.path.exists(tmp_path):
+						os.unlink(tmp_path)
+					
+					if open_ports:
+						masscan_used = True
+						logger.debug(f"masscan found {len(open_ports)} open ports for {host}")
+				else:
+					# masscan failed (might need admin privileges or network issue)
+					if result.stderr:
+						logger.debug(f"masscan execution issue for {host}: {result.stderr[:100]}")
+			except (subprocess.TimeoutExpired, PermissionError, FileNotFoundError, Exception) as e:
+				# PermissionError typically means admin privileges needed on Windows
+				if isinstance(e, PermissionError):
+					logger.debug(f"masscan requires admin privileges on Windows, using fallback ports")
+				elif isinstance(e, FileNotFoundError):
+					# This shouldn't happen if check worked, but handle it just in case
+					logger.debug(f"masscan executable not found during execution, using fallback ports")
+				else:
+					logger.debug(f"masscan execution failed for {host}, using fallback: {str(e)[:50]}")
+		
+		# Fallback: use common ports if masscan wasn't used successfully
+		if not masscan_used:
+			# Use comprehensive list of common ports for nmap to scan
+			open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995', '1723', '3389']
+		
+		if not open_ports:
+			open_ports = ['80', '443']  # Default to HTTP/HTTPS
+		
+		# Step 2: Service/version detection with nmap
+		port_str = ','.join(open_ports)
+		try:
+			with tempfile.NamedTemporaryFile(mode='w+', suffix='.xml', delete=False) as tmp:
+				tmp_path = tmp.name
+			
+			# Run nmap with service/version detection
+			result = subprocess.run(
+				['nmap', '-sV', '-p', port_str, target_ip, '-oX', tmp_path],
+				capture_output=True,
+				text=True,
+				timeout=300
+			)
+			
+			if result.returncode == 0 and os.path.exists(tmp_path):
+				tree = ET.parse(tmp_path)
+				root = tree.getroot()
+				
+				for host_elem in root.findall('host'):
+					for address in host_elem.findall('address'):
+						ip = address.get('addr')
+					
+					for ports in host_elem.findall('ports'):
+						for port in ports.findall('port'):
+							port_num = port.get('portid')
+							protocol = port.get('protocol')
+							
+							service_elem = port.find('service')
+							service_name = service_elem.get('name', 'unknown') if service_elem is not None else 'unknown'
+							service_version = service_elem.get('version', '') if service_elem is not None else ''
+							product = service_elem.get('product', '') if service_elem is not None else ''
+							version_info = f"{product} {service_version}".strip()
+							
+							services.append({
+								'hostname': host,
+								'ip': ip or target_ip,
+								'port': int(port_num),
+								'protocol': protocol or 'tcp',
+								'name': service_name,
+								'version': version_info or 'unknown'
+							})
+				
+				os.unlink(tmp_path)
+		except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+			logger.warning(f"nmap not available or failed for {host}: {e}")
+			# Fallback: try basic socket connection to detect open ports
+			try:
+				import socket
+				for port_str in open_ports[:5]:  # Test top 5 ports
+					try:
+						port = int(port_str)
+						sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+						sock.settimeout(2)
+						result = sock.connect_ex((target_ip if '.' in target_ip else host, port))
+						sock.close()
+						if result == 0:  # Port is open
+							service_name = 'http' if port in [80, 8080] else 'https' if port == 443 else 'ssh' if port == 22 else 'unknown'
+							services.append({
+								'hostname': host,
+								'ip': target_ip,
+								'port': port,
+								'protocol': 'tcp',
+								'name': service_name,
+								'version': 'unknown (detected via socket)'
+							})
+					except (ValueError, socket.gaierror, socket.error):
+						continue
+			except Exception as socket_error:
+				logger.warning(f"Socket-based port detection also failed: {socket_error}")
+				# Final fallback: assume common ports are open
+				for port_str in ['80', '443']:
+					services.append({
+						'hostname': host,
+						'ip': target_ip,
+						'port': int(port_str),
+						'protocol': 'tcp',
+						'name': 'http' if port_str == '80' else 'https',
+						'version': 'unknown'
+					})
+	
+	logger.info(f"Active scan found {len(services)} services")
+	return services
+
+@celery_app.task(name='scan.nessus', bind=True)
+def nessus_scan(self, targets: List[str], policy_uuid: str = None) -> Dict[str, Any]:
+	"""
+	Nessus vulnerability scanning via API.
+	Returns: {'targets': List[str], 'findings': List[Dict], 'error': str (optional)}
+	"""
+	# Reload environment variables in case they were added after worker started
+	import os
+	from dotenv import load_dotenv
+	load_dotenv()  # Reload .env file
+	
+	# Re-read Nessus credentials after reload
+	NESSUS_ACCESS_KEY_RELOADED = os.getenv('NESSUS_ACCESS_KEY')
+	NESSUS_SECRET_KEY_RELOADED = os.getenv('NESSUS_SECRET_KEY')
+	NESSUS_URL_RELOADED = os.getenv('NESSUS_URL', 'https://localhost:8834')
+	
+	# Use reloaded values if available, otherwise use module-level values
+	access_key = NESSUS_ACCESS_KEY_RELOADED or NESSUS_ACCESS_KEY
+	secret_key = NESSUS_SECRET_KEY_RELOADED or NESSUS_SECRET_KEY
+	nessus_url = NESSUS_URL_RELOADED or NESSUS_URL
+	
+	if not access_key or not secret_key:
+		# Log more details for debugging
+		logger.warning(f"Nessus credentials not configured. ACCESS_KEY: {'SET' if access_key else 'NOT SET'}, SECRET_KEY: {'SET' if secret_key else 'NOT SET'}")
+		logger.debug("Nessus credentials not configured, skipping vulnerability scan (Nessus is optional)")
+		# Return without error field - Nessus is optional, not an error
+		return {'targets': targets, 'findings': [], 'skipped': 'Nessus credentials not configured (optional)'}
+	
+	if not nessus_url:
+		# Only log at debug level - Nessus is optional
+		logger.debug("NESSUS_URL not configured, skipping vulnerability scan (Nessus is optional)")
+		# Return without error field - Nessus is optional, not an error
+		return {'targets': targets, 'findings': [], 'skipped': 'NESSUS_URL not configured (optional)'}
+	
+	logger.info(f"Starting Nessus scan for {len(targets)} targets: {targets}")
+	findings = []
+	scan_id = None
+	
+	try:
+		import socket
+		import time
+		import urllib3
+		urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+		
+		# Use reloaded credentials if available
+		use_access_key = access_key
+		use_secret_key = secret_key
+		use_url = nessus_url
+		
+		# Nessus API uses X-ApiKeys header
+		headers = {
+			'X-ApiKeys': f'accessKey={use_access_key}; secretKey={use_secret_key}',
+			'Content-Type': 'application/json'
+		}
+		
+		# Step 1: Verify Nessus connection
+		logger.info(f"Connecting to Nessus at {use_url}")
+		try:
+			server_status = requests.get(
+				f'{use_url}/server/status',
+				headers=headers,
+				verify=False,
+				timeout=10
+			)
+			if server_status.status_code != 200:
+				logger.error(f"Cannot connect to Nessus: HTTP {server_status.status_code}")
+				return {'targets': targets, 'findings': [], 'error': f'Cannot connect to Nessus: HTTP {server_status.status_code}'}
+			logger.info("✓ Nessus connection verified")
+		except requests.exceptions.RequestException as e:
+			logger.error(f"Failed to connect to Nessus: {e}")
+			return {'targets': targets, 'findings': [], 'error': f'Failed to connect to Nessus: {str(e)}'}
+		
+		# Step 2: Get or find scan policy
+		if not policy_uuid:
+			logger.info("No policy UUID provided, searching for available policies...")
+			try:
+				policies_res = requests.get(
+					f'{use_url}/policies',
+					headers=headers,
+					verify=False,
+					timeout=10
+				)
+				
+				if policies_res.status_code == 200:
+					response_data = policies_res.json()
+					policies = response_data.get('policies', [])
+					logger.info(f"Found {len(policies)} policies")
+					
+					if policies:
+						# Debug: Log first policy structure to understand API response format
+						if len(policies) > 0:
+							logger.debug(f"Sample policy structure: {list(policies[0].keys())}")
+							logger.debug(f"Sample policy data: {policies[0]}")
+						
+						# Prefer Basic Network Scan or Discovery Scan
+						preferred_names = ['Basic Network Scan', 'Discovery', 'Web Application Tests']
+						policy_uuid = None
+						for pref_name in preferred_names:
+							for policy in policies:
+								policy_name = policy.get('name', '')
+								if pref_name.lower() in policy_name.lower():
+									# Try different possible UUID field names
+									policy_uuid = (policy.get('uuid') or 
+												   policy.get('id') or 
+												   policy.get('template_uuid') or
+												   policy.get('policy_id'))
+									if policy_uuid:
+										logger.info(f"Selected policy: {policy_name} (UUID: {policy_uuid})")
+										break
+							if policy_uuid:
+								break
+						
+						# If no preferred policy found, use first one
+						if not policy_uuid:
+							first_policy = policies[0]
+							# For scan creation, we need template_uuid (not policy id)
+							# Nessus API requires template_uuid to create scans
+							policy_uuid = first_policy.get('template_uuid')
+							
+							# Fallback to other fields if template_uuid not available
+							if not policy_uuid:
+								policy_uuid = (first_policy.get('uuid') or 
+											   first_policy.get('policy_id'))
+							
+							policy_name = first_policy.get('name', 'Unknown')
+							if policy_uuid:
+								logger.info(f"Using first available policy: {policy_name} (Template UUID: {policy_uuid})")
+							else:
+								# Log the actual policy structure for debugging
+								logger.error(f"Policy found but template_uuid is missing. Policy keys: {list(first_policy.keys())}")
+								logger.error(f"Policy data: {first_policy}")
+					else:
+						logger.warning("No policies found in Nessus")
+				elif policies_res.status_code == 401:
+					# Authentication failed - API keys are invalid
+					logger.error(f"Authentication failed (HTTP 401). Please verify your Nessus API keys.")
+					logger.error(f"Access Key length: {len(use_access_key) if use_access_key else 0}, Secret Key length: {len(use_secret_key) if use_secret_key else 0}")
+					logger.error(f"Response: {policies_res.text[:200]}")
+					return {'targets': targets, 'findings': [], 'error': 'Nessus authentication failed (HTTP 401). Please verify your API keys are correct and regenerate them in Nessus if needed.'}
+				else:
+					logger.warning(f"Failed to get policies: HTTP {policies_res.status_code}")
+					logger.warning(f"Response: {policies_res.text[:200] if policies_res.text else 'No response body'}")
+			except Exception as e:
+				logger.warning(f"Error getting policies: {e}")
+		
+		if not policy_uuid:
+			logger.error("No Nessus policy available, skipping scan")
+			logger.error("To fix: Go to Nessus web interface (https://localhost:8834) → Policies → New Policy → Choose 'Basic Network Scan' → Save")
+			return {'targets': targets, 'findings': [], 'error': 'No Nessus policy available. Please create a scan policy in Nessus: Go to https://localhost:8834 → Policies → New Policy → Choose "Basic Network Scan" → Save'}
+		
+		# Step 3: Resolve hostnames to IPs for better scanning
+		resolved_targets = []
+		for target in targets[:50]:  # Limit to 50 targets
+			try:
+				# Check if it's already an IP
+				socket.inet_aton(target)
+				resolved_targets.append(target)
+			except socket.error:
+				# Try to resolve hostname
+				try:
+					ip = socket.gethostbyname(target)
+					resolved_targets.append(ip)
+					logger.info(f"Resolved {target} -> {ip}")
+				except socket.gaierror:
+					# If resolution fails, use hostname anyway
+					resolved_targets.append(target)
+					logger.warning(f"Could not resolve {target}, using as-is")
+		
+		targets_str = ','.join(resolved_targets)
+		logger.info(f"Scan targets: {targets_str}")
+		
+		# Step 4: Create scan
+		# Note: Nessus API requires template_uuid for scan creation
+		scan_name = f'BrandMonitorAI-{datetime.utcnow().strftime("%Y%m%d-%H%M%S")}'
+		scan_data = {
+			'uuid': str(policy_uuid),  # Ensure it's a string
+			'settings': {
+				'name': scan_name,
+				'text_targets': targets_str,
+				'enabled': True,
+				'launch': 'ONETIME'
+			}
+		}
+		
+		logger.debug(f"Scan creation payload: {scan_data}")
+		
+		logger.info(f"Creating Nessus scan '{scan_name}' with template UUID {policy_uuid}")
+		try:
+			create_res = requests.post(
+				f'{use_url}/scans',
+				headers=headers,
+				json=scan_data,
+				verify=False,
+				timeout=60  # Increased timeout for scan creation
+			)
+		except requests.exceptions.Timeout:
+			logger.error("Nessus scan creation timed out after 60 seconds")
+			return {'targets': targets, 'findings': [], 'error': 'Nessus scan creation timed out. The Nessus server may be slow or overloaded. Please try again later.'}
+		except requests.exceptions.ConnectionError as e:
+			logger.error(f"Nessus connection error during scan creation: {e}")
+			return {'targets': targets, 'findings': [], 'error': f'Nessus connection error: {str(e)}'}
+		except Exception as e:
+			logger.error(f"Unexpected error during Nessus scan creation: {e}")
+			return {'targets': targets, 'findings': [], 'error': f'Nessus scan creation error: {str(e)}'}
+		
+		if create_res.status_code not in [200, 201]:
+			error_msg = f"Nessus scan creation failed: HTTP {create_res.status_code}"
+			try:
+				error_detail = create_res.json()
+				error_msg += f" - {error_detail}"
+			except:
+				error_msg += f" - {create_res.text[:500]}"  # Limit text length
+			
+			# Handle specific error cases
+			if create_res.status_code == 412:
+				logger.error(f"{error_msg}")
+				logger.error("HTTP 412: Nessus scan creation endpoint may not be available.")
+				logger.error("This can happen if:")
+				logger.error("1. Nessus plugins are still downloading (check Nessus web UI)")
+				logger.error("2. Scan creation requires additional permissions")
+				logger.error("3. Nessus needs to be restarted")
+				return {'targets': targets, 'findings': [], 'error': 'Nessus API is not available (HTTP 412). This usually means Nessus is still initializing or plugins are downloading. Check Nessus web interface at https://localhost:8834 and wait for initialization to complete.'}
+			
+			logger.error(error_msg)
+			return {'targets': targets, 'findings': [], 'error': error_msg}
+		
+		scan_response = create_res.json()
+		scan_id = scan_response.get('scan', {}).get('id')
+		if not scan_id:
+			logger.error(f"Scan ID not found in response: {scan_response}")
+			return {'targets': targets, 'findings': [], 'error': 'Scan ID not returned from Nessus'}
+		
+		logger.info(f"Scan created successfully: ID={scan_id}")
+		
+		# Step 5: Launch scan
+		logger.info(f"Launching scan {scan_id}...")
+		launch_res = requests.post(
+			f'{use_url}/scans/{scan_id}/launch',
+			headers=headers,
+			verify=False,
+			timeout=10
+		)
+		
+		if launch_res.status_code != 200:
+			error_msg = f"Nessus scan launch failed: HTTP {launch_res.status_code} - {launch_res.text}"
+			logger.error(error_msg)
+			return {'targets': targets, 'findings': [], 'error': error_msg}
+		
+		scan_uuid = launch_res.json().get('scan_uuid')
+		logger.info(f"Scan launched: UUID={scan_uuid}")
+		
+		# Step 6: Poll for completion
+		max_wait = 3600  # 1 hour max
+		wait_time = 0
+		poll_interval = 15  # Check every 15 seconds
+		
+		logger.info(f"Polling scan status (max wait: {max_wait}s)...")
+		while wait_time < max_wait:
+			try:
+				status_res = requests.get(
+					f'{use_url}/scans/{scan_id}',
+					headers=headers,
+					verify=False,
+					timeout=10
+				)
+				
+				if status_res.status_code == 200:
+					scan_info = status_res.json()
+					status = scan_info.get('info', {}).get('status')
+					
+					if status == 'completed':
+						logger.info("Scan completed, exporting results...")
+						
+						# Get vulnerability summary first
+						hosts_data = scan_info.get('hosts', [])
+						vulnerabilities = scan_info.get('vulnerabilities', [])
+						
+						logger.info(f"Scan summary: {len(hosts_data)} hosts, {len(vulnerabilities)} vulnerabilities")
+						
+						# Export detailed findings
+						export_data = {'format': 'nessus'}
+						export_res = requests.post(
+							f'{use_url}/scans/{scan_id}/export',
+							headers=headers,
+							json=export_data,
+							verify=False,
+							timeout=30
+						)
+						
+						if export_res.status_code == 200:
+							export_info = export_res.json()
+							file_id = export_info.get('file')
+							
+							if file_id:
+								# Wait for export to be ready
+								logger.info(f"Waiting for export {file_id} to be ready...")
+								export_ready = False
+								for _ in range(12):  # Wait up to 60 seconds
+									time.sleep(5)
+									status_check = requests.get(
+										f'{use_url}/scans/{scan_id}',
+										headers=headers,
+										verify=False,
+										timeout=10
+									)
+									if status_check.status_code == 200:
+										export_ready = True
+										break
+								
+								# Download export
+								logger.info(f"Downloading export {file_id}...")
+								download_res = requests.get(
+									f'{use_url}/scans/{scan_id}/export/{file_id}/download',
+									headers=headers,
+									verify=False,
+									timeout=120,
+									stream=True
+								)
+								
+								if download_res.status_code == 200:
+									# Parse Nessus XML export
+									import xml.etree.ElementTree as ET
+									try:
+										root = ET.fromstring(download_res.content)
+										logger.info("Parsing Nessus XML export...")
+										
+										# Extract vulnerabilities from XML
+										for report_host in root.findall('.//ReportHost'):
+											hostname = report_host.get('name', '')
+											for item in report_host.findall('.//ReportItem'):
+												plugin_id = item.get('pluginID', '')
+												plugin_name = item.get('pluginName', '')
+												severity = item.get('severity', '0')
+												
+												# Skip informational findings (severity 0)
+												if severity == '0':
+													continue
+												
+												# Get CVSS score
+												cvss_score = 0.0
+												cvss_vector = item.find('.//cvss_vector')
+												if cvss_vector is not None:
+													try:
+														cvss_base = item.find('.//cvss_base_score')
+														if cvss_base is not None:
+															cvss_score = float(cvss_base.text)
+													except:
+														pass
+												
+												# Get CVE
+												cve_list = []
+												for cve_elem in item.findall('.//cve'):
+													if cve_elem.text:
+														cve_list.append(cve_elem.text)
+												
+												# Get description
+												description = ''
+												desc_elem = item.find('.//plugin_output')
+												if desc_elem is not None and desc_elem.text:
+													description = desc_elem.text[:500]  # Limit length
+												
+												findings.append({
+													'plugin_id': str(plugin_id),
+													'name': plugin_name or 'Unknown',
+													'severity': severity,
+													'severity_name': ['Info', 'Low', 'Medium', 'High', 'Critical'][min(int(severity), 4)],
+													'cvss_score': cvss_score,
+													'cve': ', '.join(cve_list) if cve_list else '',
+													'host': hostname,
+													'description': description
+												})
+									except ET.ParseError as parse_err:
+										logger.warning(f"Failed to parse Nessus XML: {parse_err}")
+										# Fallback: use vulnerabilities from scan info
+										for vuln in vulnerabilities:
+											vuln_data = vuln if isinstance(vuln, dict) else vuln
+											findings.append({
+												'plugin_id': str(vuln_data.get('plugin_id', '')),
+												'name': vuln_data.get('plugin_name', 'Unknown'),
+												'severity': str(vuln_data.get('severity', '0')),
+												'severity_name': ['Info', 'Low', 'Medium', 'High', 'Critical'][min(int(vuln_data.get('severity', 0)), 4)],
+												'cvss_score': float(vuln_data.get('cvss3_base_score') or vuln_data.get('cvss_base_score', 0.0)),
+												'cve': str(vuln_data.get('cve', '')),
+												'host': vuln_data.get('hostname', '')
+											})
+								else:
+									logger.warning(f"Export download failed: HTTP {download_res.status_code}")
+									# Fallback to using vulnerabilities from scan info
+									for vuln in vulnerabilities:
+										vuln_data = vuln if isinstance(vuln, dict) else vuln
+										findings.append({
+											'plugin_id': str(vuln_data.get('plugin_id', '')),
+											'name': vuln_data.get('plugin_name', 'Unknown'),
+											'severity': str(vuln_data.get('severity', '0')),
+											'cvss_score': float(vuln_data.get('cvss3_base_score') or vuln_data.get('cvss_base_score', 0.0)),
+											'cve': str(vuln_data.get('cve', '')),
+											'host': vuln_data.get('hostname', '')
+										})
+							else:
+								logger.warning("Export file ID not returned")
+						else:
+							logger.warning(f"Export request failed: HTTP {export_res.status_code}")
+						
+						# If we still don't have findings, try to get them from scan details
+						if not findings and vulnerabilities:
+							logger.info("Extracting vulnerabilities from scan details...")
+							for vuln in vulnerabilities:
+								vuln_data = vuln if isinstance(vuln, dict) else vuln
+								severity = vuln_data.get('severity', 0)
+								if severity > 0:  # Skip informational
+									findings.append({
+										'plugin_id': str(vuln_data.get('plugin_id', '')),
+										'name': vuln_data.get('plugin_name', 'Unknown'),
+										'severity': str(severity),
+										'severity_name': ['Info', 'Low', 'Medium', 'High', 'Critical'][min(int(severity), 4)],
+										'cvss_score': float(vuln_data.get('cvss3_base_score') or vuln_data.get('cvss_base_score', 0.0)),
+										'cve': str(vuln_data.get('cve', '')),
+										'host': vuln_data.get('hostname', targets[0] if targets else '')
+									})
+						
+						break
+					elif status in ['canceled', 'aborted', 'error']:
+						logger.error(f"Scan {status}: {scan_info}")
+						return {'targets': targets, 'findings': [], 'error': f'Scan {status}'}
+					else:
+						# Still running
+						progress = scan_info.get('info', {}).get('scanner_progress', 0)
+						logger.info(f"Scan status: {status} ({progress}% complete)")
+				
+				time.sleep(poll_interval)
+				wait_time += poll_interval
+				
+			except requests.exceptions.RequestException as e:
+				logger.warning(f"Error checking scan status: {e}, retrying...")
+				time.sleep(poll_interval)
+				wait_time += poll_interval
+		
+		if wait_time >= max_wait:
+			logger.error(f"Scan timeout after {max_wait}s")
+			return {'targets': targets, 'findings': [], 'error': f'Scan timeout after {max_wait}s'}
+		
+	except Exception as e:
+		logger.error(f"Nessus scan error: {e}", exc_info=True)
+		return {'targets': targets, 'findings': [], 'error': f'Scan error: {str(e)}'}
+	finally:
+		# Cleanup: delete scan if created
+		if scan_id:
+			try:
+				delete_res = requests.delete(
+					f'{use_url}/scans/{scan_id}',
+					headers=headers,
+					verify=False,
+					timeout=10
+				)
+				if delete_res.status_code == 200:
+					logger.info(f"Cleaned up scan {scan_id}")
+			except:
+				pass  # Ignore cleanup errors
+	
+	logger.info(f"Nessus scan completed: found {len(findings)} vulnerabilities")
+	if findings:
+		severity_counts = {}
+		for f in findings:
+			sev = f.get('severity_name', 'Unknown')
+			severity_counts[sev] = severity_counts.get(sev, 0) + 1
+		logger.info(f"Vulnerability breakdown: {severity_counts}")
+	
+	return {'targets': targets, 'findings': findings}
+
+@celery_app.task(name='process_file_task')
+def process_file_task(file_path: str, file_type: str) -> Dict[str, Any]:
+	"""
+	Celery task for asynchronous file processing.
+	Handles OCR, text extraction, and analysis.
+	"""
+	import asyncio
+	from services.file_processor import file_processor
+	
+	logger.info(f"Processing file: {file_path} (type: {file_type})")
+	
+	try:
+		# Run async processing
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		result = loop.run_until_complete(
+			file_processor.process_file(file_path, file_type)
+		)
+		loop.close()
+		
+		logger.info(f"File processing completed: {file_path}")
+		return result
+	except Exception as e:
+		logger.error(f"File processing task failed: {e}")
+		raise
+
+@celery_app.task(name='scan.orchestrate', bind=True)
+def orchestrate_scan(self, scan_id: str, domain: str, nessus_policy_uuid: str = None, 
+                     enable_passive: bool = True, enable_active: bool = True, 
+                     enable_vuln: bool = True, port_range: str = None,
+                     scan_intensity: str = "normal", max_threads: int = 10,
+                     timeout: int = 3600) -> Dict[str, Any]:
+	"""
+	Main orchestration: passive → active → vulnerability → index.
+	"""
+	logger.info(f"Starting orchestrated scan {scan_id} for {domain}")
+	
+	# Step 1: Passive reconnaissance
+	subdomains = [domain]
+	host_to_ip = {}
+	
+	if enable_passive:
+		try:
+			# Use apply() instead of delay().get() to execute synchronously in same worker
+			passive_result = passive_scan.apply(args=[domain])
+			if passive_result.successful():
+				subdomains = passive_result.result.get('subdomains', [domain])
+				host_to_ip = passive_result.result.get('host_to_ip', {})
+			else:
+				logger.error(f"Passive scan failed: {passive_result.result}")
+		except Exception as e:
+			logger.error(f"Passive scan failed: {e}")
+	
+	# Step 2: Active scanning
+	services = []
+	if enable_active and subdomains:
+		try:
+			# Use apply() instead of delay().get() to execute synchronously in same worker
+			active_result = active_scan.apply(args=[subdomains], kwargs={
+				'host_to_ip': host_to_ip,
+				'port_range': port_range,
+				'scan_intensity': scan_intensity,
+				'max_threads': max_threads,
+				'timeout': timeout
+			})
+			if active_result.successful():
+				services = active_result.result or []
+			else:
+				logger.error(f"Active scan failed: {active_result.result}")
+		except Exception as e:
+			logger.error(f"Active scan failed: {e}")
+	
+	# Step 3: Vulnerability scanning
+	vuln_findings = []
+	nessus_error = None
+	nessus_skipped = False
+	nessus_skipped_reason = None
+	if enable_vuln and subdomains:
+		try:
+			# Use provided policy UUID or None (will auto-select default)
+			policy = nessus_policy_uuid if nessus_policy_uuid else None
+			# Use apply() instead of delay().get() to execute synchronously in same worker
+			nessus_result = nessus_scan.apply(args=[subdomains], kwargs={'policy_uuid': policy})
+			if nessus_result.successful():
+				result_data = nessus_result.result
+				vuln_findings = result_data.get('findings', [])
+				nessus_error = result_data.get('error')
+				nessus_skipped = result_data.get('skipped')
+				
+				# Handle skipped Nessus (optional, not an error)
+				if nessus_skipped:
+					nessus_skipped_reason = nessus_skipped
+					logger.debug(f"Nessus scan skipped: {nessus_skipped}")
+				# Handle actual errors
+				elif nessus_error:
+					logger.warning(f"Nessus scan completed with error: {nessus_error}")
+				if vuln_findings:
+					logger.info(f"Nessus found {len(vuln_findings)} vulnerabilities")
+				else:
+					if not nessus_error and not nessus_skipped:
+						logger.info("Nessus scan completed but found no vulnerabilities (this may be normal if target is secure)")
+			else:
+				logger.error(f"Nessus scan task failed: {nessus_result.result}")
+				nessus_error = str(nessus_result.result)
+		except Exception as e:
+			logger.error(f"Nessus scan failed: {e}", exc_info=True)
+			nessus_error = str(e)
+	
+	# Step 4: Index results
+	documents = []
+	
+	# Group services by hostname
+	services_by_host = {}
+	for svc in services:
+		hostname = svc.get('hostname', domain)
+		if hostname not in services_by_host:
+			services_by_host[hostname] = []
+		services_by_host[hostname].append({
+			'port': svc.get('port'),
+			'protocol': svc.get('protocol', 'tcp'),
+			'name': svc.get('name', 'unknown'),
+			'version': svc.get('version', 'unknown')
+		})
+	
+	# Group vulnerabilities by host
+	vulns_by_host = {}
+	for vuln in vuln_findings:
+		vuln_host = vuln.get('host', domain)
+		if vuln_host not in vulns_by_host:
+			vulns_by_host[vuln_host] = []
+		vulns_by_host[vuln_host].append({
+			'plugin_id': vuln.get('plugin_id'),
+			'name': vuln.get('name'),
+			'severity': vuln.get('severity'),
+			'cvss_score': vuln.get('cvss_score', 0.0),
+			'cve': vuln.get('cve', '')
+		})
+	
+	# Create documents per host
+	for hostname, svc_list in services_by_host.items():
+		doc = {
+			'@timestamp': datetime.utcnow().isoformat(),
+			'scan_id': scan_id,
+			'asset': {
+				'domain': domain,
+				'hostname': hostname,
+				'ip': host_to_ip.get(hostname) or services[0].get('ip', '') if services else ''
+			},
+			'services': svc_list,
+			'vulnerabilities': vulns_by_host.get(hostname, [])
+		}
+		documents.append(doc)
+	
+	# If no services found, create a placeholder document
+	if not documents:
+		doc = {
+			'@timestamp': datetime.utcnow().isoformat(),
+			'scan_id': scan_id,
+			'asset': {
+				'domain': domain,
+				'hostname': domain,
+				'ip': ''
+			},
+			'services': [],
+			'vulnerabilities': vulns_by_host.get(domain, [])
+		}
+		documents.append(doc)
+	
+	# Bulk index
+	try:
+		bulk_index_assets(documents)
+	except Exception as e:
+		logger.error(f"Indexing failed: {e}")
+		raise
+	
+	logger.info(f"Scan {scan_id} completed: {len(documents)} assets, {len(services)} services, {len(vuln_findings)} vulnerabilities")
+	
+	result = {
+		'scan_id': scan_id,
+		'domain': domain,
+		'assets_found': len(documents),
+		'services_found': len(services),
+		'vulnerabilities_found': len(vuln_findings)
+	}
+	
+	# Add information about Nessus status if it was skipped
+	if enable_vuln and nessus_skipped:
+		result['nessus_skipped'] = True
+		result['nessus_skipped_reason'] = nessus_skipped_reason or 'Nessus not configured (optional)'
+	
+	return result
+
+
+

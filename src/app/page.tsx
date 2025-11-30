@@ -1,7 +1,7 @@
 "use client";
 
-import { ChatInterface } from "@/components/ChatInterface";
+import ChatBox from "@/components/chat/ChatBox";
 
 export default function Home() {
-  return <ChatInterface />;
+  return <ChatBox />;
 }

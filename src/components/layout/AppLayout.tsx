@@ -45,7 +45,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/oauth-register";
       // Do not redirect from root immediately; allow session to hydrate
       if (!isAuthPage && pathname !== "/") {
-        router.push("/login");
+      router.push("/login");
       }
     }
   }, [isLoading, user, pathname, router]);

@@ -1,0 +1,56 @@
+# FastAPI Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+motor==3.3.2
+pymongo==4.6.1
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+
+# Task Queue
+celery==5.3.6
+redis==5.0.1
+
+# Search & Storage
+# Note: parsedmarc requires elasticsearch<7.14.0, so we use 7.13.4
+# If you need elasticsearch 8.x, install parsedmarc separately or use a different DMARC parser
+elasticsearch==7.13.4
+meilisearch==0.31.2
+
+# Authentication
+pyjwt==2.8.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# AI Providers (Optional)
+boto3==1.34.34
+openai==1.12.0
+anthropic==0.18.1
+
+# File Processing (OCR, Text Extraction)
+pytesseract==0.3.10
+Pillow==10.2.0
+PyPDF2==3.0.1
+python-docx==1.1.0
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.32.3
+# Note: urllib3 version relaxed to allow elasticsearch 7.13.4 compatibility
+# elasticsearch 7.13.4 requires urllib3<2, so we use 1.26.x
+urllib3>=1.26.0,<2.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# DNS Monitoring
+dnspython==2.6.1
+
+# DMARC Monitoring
+checkdmarc==4.0.0
+# Note: parsedmarc requires elasticsearch<7.14.0
+# If elasticsearch 8.x is needed, consider making parsedmarc optional
+parsedmarc>=8.19.0
+

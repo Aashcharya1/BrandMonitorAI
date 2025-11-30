@@ -18,12 +18,14 @@ import {
   MessageSquare,
   History,
   LogIn,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { href: "/", label: "Chat", icon: MessageSquare, auth: true },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, auth: true },
+  { href: "/external-surface-monitoring", label: "External Surface", icon: Globe, auth: true },
   { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck, auth: true },
   { href: "/dns-monitoring", label: "DNS", icon: Network, auth: true },
   { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity, auth: true },
