@@ -7,6 +7,14 @@ type DmarcPieChartProps = {
 };
 
 export function DmarcPieChart({ data }: DmarcPieChartProps) {
+  // If we only have one data point, create a complementary slice to show the full circle
+  const chartData = data.length === 1 
+    ? [
+        ...data,
+        { name: "Other", value: 100 - data[0].value, fill: "hsl(var(--muted))" }
+      ]
+    : data;
+
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer>
@@ -18,17 +26,19 @@ export function DmarcPieChart({ data }: DmarcPieChartProps) {
               borderColor: "hsl(var(--border))",
               borderRadius: "var(--radius)",
             }}
+            formatter={(value: number) => [`${value}%`, "Percentage"]}
           />
           <Pie
-            data={data}
+            data={chartData}
             cx="50%"
             cy="50%"
             labelLine={false}
+            label={({ name, value }) => `${name}: ${value}%`}
             outerRadius={100}
             dataKey="value"
             nameKey="name"
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill} />
             ))}
           </Pie>

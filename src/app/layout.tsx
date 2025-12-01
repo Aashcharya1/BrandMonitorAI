@@ -10,7 +10,13 @@ import { ClientAuthProvider } from '@/components/ClientAuthProvider'
 import { NextAuthProvider } from '@/components/NextAuthProvider'
 import { Toaster } from '@/components/ui/toaster'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', 'arial'],
+  adjustFontFallback: true,
+  preload: true,
+})
 
 export const metadata: Metadata = {
   title: 'BrandMonitorAI',

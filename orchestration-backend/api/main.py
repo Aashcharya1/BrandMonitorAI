@@ -92,6 +92,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning(f"⚠ LibreChat routes not found in: {routes[:5]}...")
     
+    # Verify DMARC endpoint is registered
+    dmarc_routes = [r for r in routes if 'dmarc' in str(r).lower()]
+    if dmarc_routes:
+        logger.info(f"✓ DMARC routes found: {dmarc_routes[:5]}...")
+    else:
+        logger.warning(f"⚠ DMARC routes not found in: {routes[:10]}...")
+    
     yield
     
     # Shutdown

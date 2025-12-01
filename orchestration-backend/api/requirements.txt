@@ -49,6 +49,7 @@ pydantic-settings==2.1.0
 dnspython==2.6.1
 
 # DMARC Monitoring
+setuptools>=65.0.0  # Required by checkdmarc for pkg_resources
 checkdmarc==4.0.0
 # Note: parsedmarc requires elasticsearch<7.14.0
 # If elasticsearch 8.x is needed, consider making parsedmarc optional

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DnsBarChart } from "@/components/charts/DnsBarChart";
-import { mockDnsData } from "@/lib/mock-data";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,22 @@ export default function DnsMonitoringPage() {
   const [monitoringStatus, setMonitoringStatus] = useState<any>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  // Helper to safely set error (always string)
+  const setErrorSafe = (err: any) => {
+    if (err === null || err === undefined) {
+      setError(null);
+      return;
+    }
+    const errorStr = typeof err === 'string' 
+      ? err 
+      : (err instanceof Error 
+          ? err.message 
+          : (typeof err === 'object' 
+              ? JSON.stringify(err) 
+              : String(err)));
+    setError(errorStr);
+  };
+
   const availableRecordTypes = ["A", "AAAA", "MX", "TXT", "NS", "CNAME", "SOA", "PTR", "SRV", "DNSKEY"];
 
   const toggleRecordType = (type: string) => {
@@ -52,32 +68,68 @@ export default function DnsMonitoringPage() {
     setError(null);
     
     try {
+      if (!domain.trim()) {
+        setErrorSafe("Domain is required");
+        setIsLoading(false);
+        return;
+      }
+
+      const requestBody = {
+        domain: domain.trim(),
+        record_types: recordTypes,
+        interval: monitoringInterval,
+        nameservers: nameservers.trim() ? nameservers.split(",").map(ns => ns.trim()).filter(Boolean) : undefined,
+        alert_threshold: alertThreshold,
+        check_timeout: checkTimeout,
+        enable_change_detection: enableChangeDetection,
+      };
+
+      console.log("Starting DNS monitoring with:", requestBody);
+      console.log("Request URL:", `${API_BASE}/api/v1/dns/monitor`);
+
       const res = await fetch(`${API_BASE}/api/v1/dns/monitor`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: domain.trim(),
-          record_types: recordTypes,
-          interval: monitoringInterval,
-          nameservers: nameservers.trim() ? nameservers.split(",").map(ns => ns.trim()).filter(Boolean) : undefined,
-          alert_threshold: alertThreshold,
-          check_timeout: checkTimeout,
-          enable_change_detection: enableChangeDetection,
-        }),
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(requestBody),
       });
 
+      console.log("Start monitoring response status:", res.status);
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || `HTTP ${res.status}`);
+        let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+        try {
+          const errorData = await res.json();
+          console.log("Error response data:", errorData);
+          // Handle different error response formats
+          if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else if (errorData.detail) {
+            errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+          } else if (errorData.message) {
+            errorMessage = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+          } else {
+            errorMessage = JSON.stringify(errorData);
+          }
+        } catch (parseErr) {
+          console.error("Failed to parse error response:", parseErr);
+          // If JSON parsing fails, use the status text
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
+      console.log("DNS monitoring started successfully:", data);
       setIsMonitoring(true);
       setSessionId(data.session_id);
       setMonitoringStatus(data);
-      console.log("DNS monitoring started:", data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start DNS monitoring");
+      console.error("Start monitoring error:", err);
+      setErrorSafe(err);
     } finally {
       setIsLoading(false);
     }
@@ -88,24 +140,73 @@ export default function DnsMonitoringPage() {
     setError(null);
     
     try {
-      const res = await fetch(`${API_BASE}/api/v1/dns/monitor/stop`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: domain.trim(),
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || `HTTP ${res.status}`);
+      if (!domain.trim()) {
+        setErrorSafe("Domain is required to stop monitoring");
+        setIsLoading(false);
+        return;
       }
 
-      setIsMonitoring(false);
-      setMonitoringStatus(null);
-      setSessionId(null);
+      console.log("Stopping DNS monitoring for domain:", domain.trim());
+      
+      const requestBody = {
+        domain: domain.trim(),
+      };
+      
+      console.log("Request body:", requestBody);
+      console.log("Request body JSON:", JSON.stringify(requestBody));
+      
+      const res = await fetch(`${API_BASE}/api/v1/dns/monitor/stop`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log("Stop monitoring response status:", res.status);
+
+      if (!res.ok) {
+        let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+        try {
+          const errorData = await res.json();
+          console.log("Error response data:", errorData);
+          // Handle different error response formats
+          if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else if (errorData.detail) {
+            errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+          } else if (errorData.message) {
+            errorMessage = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+          } else {
+            errorMessage = JSON.stringify(errorData);
+          }
+        } catch (parseErr) {
+          console.error("Failed to parse error response:", parseErr);
+          // If JSON parsing fails, use the status text
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await res.json();
+      console.log("Stop monitoring response data:", data);
+      
+      // Only update state if the stop was successful
+      if (data.status === "stopped" || data.status === "not_found") {
+        console.log("Monitoring stopped successfully");
+        setIsMonitoring(false);
+        setMonitoringStatus(null);
+        setSessionId(null);
+        setError(null);
+      } else {
+        const message = typeof data.message === 'string' ? data.message : JSON.stringify(data.message || "Failed to stop monitoring");
+        throw new Error(message);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to stop DNS monitoring");
+      console.error("Stop monitoring error:", err);
+      setErrorSafe(err);
     } finally {
       setIsLoading(false);
     }
@@ -115,92 +216,275 @@ export default function DnsMonitoringPage() {
   useEffect(() => {
     if (!isMonitoring || !domain) return;
     
+    let isMounted = true;
+    
     const poll = async () => {
+      if (!isMounted) return;
+      
       try {
         const res = await fetch(`${API_BASE}/api/v1/dns/monitor/status/${domain}`);
+        if (!isMounted) return;
+        
         if (res.ok) {
           const data = await res.json();
-          setMonitoringStatus(data);
+          // If status indicates monitoring stopped, update local state
+          if (data.status === "not_monitoring" || data.status === "stopped") {
+            if (isMounted) {
+              setIsMonitoring(false);
+              setMonitoringStatus(null);
+              setSessionId(null);
+            }
+            return;
+          }
+          if (isMounted) {
+            setMonitoringStatus(data);
+          }
+        } else if (res.status === 404) {
+          // Session not found, stop monitoring
+          if (isMounted) {
+            setIsMonitoring(false);
+            setMonitoringStatus(null);
+            setSessionId(null);
+          }
         }
       } catch (err) {
         console.error("Error polling DNS status:", err);
+        // Don't set error state from polling errors to avoid UI noise
       }
     };
     
     poll();
     const interval = setInterval(poll, 10000); // Poll every 10 seconds
     
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [isMonitoring, domain]);
+
+  // Prepare data for visualizations
+  const getRecordDistributionData = () => {
+    if (!monitoringStatus?.current_records) return [];
+    return Object.entries(monitoringStatus.current_records).map(([type, records]: [string, any]) => ({
+      name: type,
+      count: Array.isArray(records) ? records.length : 0
+    }));
+  };
+
+  const getRecordTypesData = () => {
+    if (!monitoringStatus?.current_records) return [];
+    return Object.keys(monitoringStatus.current_records);
+  };
+
+  const getTotalRecordsCount = () => {
+    if (!monitoringStatus?.current_records) return 0;
+    return Object.values(monitoringStatus.current_records).reduce((total: number, records: any) => {
+      return total + (Array.isArray(records) ? records.length : 0);
+    }, 0);
+  };
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto space-y-6 p-6 h-full">
-        <Card>
-          <CardHeader>
-            <CardTitle>DNS Record Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <DnsBarChart data={mockDnsData} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>DNS Change History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {isMonitoring ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span>Monitoring active for {domain}</span>
+      <div className="flex-1 overflow-y-auto space-y-6 p-0 md:p-0 h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Network className="h-6 w-6" />
+              DNS Monitoring
+            </h1>
+            {isMonitoring && domain && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Monitoring: <span className="font-mono font-medium">{domain}</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Empty state when not monitoring */}
+        {!isMonitoring && !monitoringStatus && (
+          <div className="px-6 py-12 text-center">
+            <Network className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">No Active Monitoring</h2>
+            <p className="text-muted-foreground mb-6">
+              Start monitoring from the right panel to track DNS record changes
+            </p>
+          </div>
+        )}
+
+        {/* Active monitoring content */}
+        {isMonitoring && monitoringStatus && (
+          <div className="px-6 space-y-6">
+            {/* Status Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Monitoring Status</span>
+                  <Badge className="bg-green-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Active
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span>Monitoring active for <span className="font-mono font-semibold">{domain}</span></span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <p className="text-2xl font-bold text-primary">{getTotalRecordsCount()}</p>
+                      <p className="text-xs text-muted-foreground">Total Records</p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{getRecordTypesData().length}</p>
+                      <p className="text-xs text-muted-foreground">Record Types</p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <p className="text-2xl font-bold text-orange-600">
+                        {monitoringStatus.changes ? monitoringStatus.changes.length : 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Changes Detected</p>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <XCircle className="h-5 w-5" />
-                  <span>No active monitoring</span>
-                </div>
-              )}
-              {monitoringStatus && monitoringStatus.current_records && (
-                <div className="space-y-3">
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm font-medium mb-2">Current DNS Records</p>
-                    {Object.entries(monitoringStatus.current_records).map(([type, records]: [string, any]) => (
-                      <div key={type} className="mb-2">
-                        <p className="text-xs font-semibold text-muted-foreground">{type} Records:</p>
-                        <div className="ml-4 space-y-1">
-                          {records.map((r: any, idx: number) => (
-                            <p key={idx} className="text-xs font-mono">{r.value}</p>
-                          ))}
+              </CardContent>
+            </Card>
+
+            {/* DNS Record Distribution Chart */}
+            {monitoringStatus?.current_records && Object.keys(monitoringStatus.current_records).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>DNS Record Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DnsBarChart data={getRecordDistributionData()} />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Current DNS Records Table */}
+            {monitoringStatus?.current_records && Object.keys(monitoringStatus.current_records).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Current DNS Records</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Record Type</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>TTL</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(monitoringStatus.current_records).map(([type, records]: [string, any]) => 
+                      Array.isArray(records) && records.map((r: any, idx: number) => (
+                        <TableRow key={`${type}-${idx}`}>
+                          <TableCell>
+                            <Badge variant="outline">{type}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{r.value}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {r.ttl ? `${r.ttl}s` : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+            {/* DNS Changes Detected */}
+            {monitoringStatus?.changes && monitoringStatus.changes.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span>DNS Changes Detected</span>
+                    <Badge variant="destructive">{monitoringStatus.changes.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {monitoringStatus.changes.map((change: any, idx: number) => (
+                      <div key={idx} className="p-4 border border-yellow-500 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="bg-yellow-100 dark:bg-yellow-900/30">
+                            {change.record_type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{change.timestamp}</span>
                         </div>
+                        {change.added.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">Added:</p>
+                            <div className="space-y-1">
+                              {change.added.map((value: string, addIdx: number) => (
+                                <p key={addIdx} className="text-xs font-mono text-green-600 dark:text-green-300">
+                                  + {value}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {change.removed.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">Removed:</p>
+                            <div className="space-y-1">
+                              {change.removed.map((value: string, remIdx: number) => (
+                                <p key={remIdx} className="text-xs font-mono text-red-600 dark:text-red-300">
+                                  - {value}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                  {monitoringStatus.changes && monitoringStatus.changes.length > 0 && (
-                    <div className="p-4 border border-yellow-500 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
-                      <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">DNS Changes Detected</p>
-                      {monitoringStatus.changes.map((change: any, idx: number) => (
-                        <div key={idx} className="text-xs">
-                          <p className="font-semibold">{change.record_type}:</p>
-                          {change.added.length > 0 && (
-                            <p className="text-green-600">+ {change.added.join(", ")}</p>
-                          )}
-                          {change.removed.length > 0 && (
-                            <p className="text-red-600">- {change.removed.join(", ")}</p>
-                          )}
-                        </div>
-                      ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Baseline Records Comparison */}
+            {monitoringStatus?.baseline_records && monitoringStatus?.current_records && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Baseline Comparison</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Comparing current records against baseline established at: {monitoringStatus.started_at}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm font-semibold mb-2">Baseline Records</p>
+                        <p className="text-2xl font-bold text-muted-foreground">
+                          {Object.values(monitoringStatus.baseline_records).reduce((total: number, records: any) => {
+                            return total + (Array.isArray(records) ? records.length : 0);
+                          }, 0)}
+                        </p>
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm font-semibold mb-2">Current Records</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {getTotalRecordsCount()}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground">
-                DNS monitoring tracks changes to DNS records and alerts when unauthorized changes are detected.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right options sidebar */}
@@ -355,7 +639,9 @@ export default function DnsMonitoringPage() {
 
         {error && (
           <div className="p-3 border border-red-500 rounded-lg bg-red-950/20">
-            <p className="text-xs text-red-400">{error}</p>
+            <p className="text-xs text-red-400">
+              {typeof error === 'string' ? error : JSON.stringify(error)}
+            </p>
           </div>
         )}
 

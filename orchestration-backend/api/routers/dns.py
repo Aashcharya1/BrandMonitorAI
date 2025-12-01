@@ -2,7 +2,7 @@
 DNS Monitoring Router - Agentless DNS Monitoring
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Body
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import subprocess
@@ -44,9 +44,20 @@ class DNSRecordResponse(BaseModel):
     timestamp: str
 
 @router.post("/dns/monitor")
-async def start_dns_monitoring(request: DNSMonitorRequest, background_tasks: BackgroundTasks):
-    """Start DNS monitoring for a domain"""
+async def start_dns_monitoring(request: DNSMonitorRequest = Body(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    """Start DNS monitoring for a domain
+    
+    Accepts a JSON body with:
+    - domain: str (required)
+    - record_types: List[str] (optional, default: ["A", "AAAA", "MX", "TXT", "NS"])
+    - interval: str (optional, default: "hourly")
+    - nameservers: List[str] (optional)
+    - alert_threshold: int (optional, default: 5)
+    - check_timeout: int (optional, default: 30)
+    - enable_change_detection: bool (optional, default: True)
+    """
     try:
+        logger.info(f"Start DNS monitoring request received: domain={request.domain}")
         if not request.domain or not request.domain.strip():
             raise HTTPException(status_code=400, detail="Domain is required")
         
@@ -76,7 +87,13 @@ async def start_dns_monitoring(request: DNSMonitorRequest, background_tasks: Bac
                             }
                             for rdata in answers
                         ]
+                    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN) as e:
+                        # NoAnswer is expected for record types that don't exist (e.g., CNAME for apex domain)
+                        # NXDOMAIN means the domain doesn't exist
+                        logger.debug(f"No {record_type} records found for {domain}: {e}")
+                        initial_records[record_type] = []
                     except Exception as e:
+                        # Other errors (timeout, network issues, etc.) are logged as warnings
                         logger.warning(f"Could not resolve {record_type} for {domain}: {e}")
                         initial_records[record_type] = []
             except Exception as e:
@@ -120,25 +137,49 @@ async def start_dns_monitoring(request: DNSMonitorRequest, background_tasks: Bac
         logger.error(f"Error starting DNS monitoring: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class DNSStopRequest(BaseModel):
+    domain: str
+
 @router.post("/dns/monitor/stop")
-async def stop_dns_monitoring(domain: str):
-    """Stop DNS monitoring for a domain"""
+async def stop_dns_monitoring(request: DNSStopRequest = Body(...)):
+    """Stop DNS monitoring for a domain
+    
+    Accepts a JSON body with:
+    - domain: str (required)
+    """
     try:
+        logger.info(f"Stop monitoring request received: domain={request.domain}")
+        if not request.domain or not request.domain.strip():
+            raise HTTPException(status_code=400, detail="Domain is required in request body")
+        
+        domain = request.domain.strip().lower()
+        
         # Find and remove monitoring session
         sessions_to_remove = [
             sid for sid, session in monitoring_sessions.items()
-            if session["domain"] == domain.lower()
+            if session["domain"] == domain and session.get("status") == "active"
         ]
+        
+        if not sessions_to_remove:
+            return {
+                "domain": domain,
+                "status": "not_found",
+                "message": f"No active monitoring session found for {domain}"
+            }
         
         for sid in sessions_to_remove:
             monitoring_sessions[sid]["status"] = "stopped"
             del monitoring_sessions[sid]
+        
+        logger.info(f"DNS monitoring stopped for {domain}, removed {len(sessions_to_remove)} session(s)")
         
         return {
             "domain": domain,
             "status": "stopped",
             "message": f"DNS monitoring stopped for {domain}"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error stopping DNS monitoring: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -181,7 +222,13 @@ async def get_dns_monitoring_status(domain: str):
                             }
                             for rdata in answers
                         ]
+                    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN) as e:
+                        # NoAnswer is expected for record types that don't exist (e.g., CNAME for apex domain)
+                        # NXDOMAIN means the domain doesn't exist
+                        logger.debug(f"No {record_type} records found for {domain}: {e}")
+                        current_records[record_type] = []
                     except Exception as e:
+                        # Other errors (timeout, network issues, etc.) are logged as warnings
                         logger.warning(f"Could not resolve {record_type} for {domain}: {e}")
                         current_records[record_type] = []
             except Exception as e:

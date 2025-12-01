@@ -16,8 +16,11 @@ import {
   BarChart3,
   Network,
   Zap,
-  Shield
+  Shield,
+  Download
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid, PieChart, Pie, Cell } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -52,14 +55,27 @@ export default function ExternalSurfaceMonitoringPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const availableModules = [
-    "sfp_dnsresolve",
-    "sfp_dnsbrute",
-    "sfp_subdomain",
-    "sfp_whois",
-    "sfp_webanalyze",
-    "sfp_portscan",
-    "sfp_ssl",
-    "sfp_certificate",
+    // Passive Discovery Modules (Critical for subdomain enumeration)
+    "sfp_crt",              // Certificate Transparency - CRITICAL
+    "sfp_subdomain",        // General subdomain enumeration
+    "sfp_dnsbrute",         // DNS brute forcing
+    "sfp_dnsresolve",       // DNS resolution
+    "sfp_hackertarget",     // HackerTarget API
+    "sfp_threatcrowd",      // ThreatCrowd API
+    "sfp_whois",            // WHOIS lookups
+    "sfp_dnscommonsrv",     // DNS common SRV records
+    "sfp_dnsdb",            // DNS database lookups
+    // API-based modules (require API keys)
+    "sfp_virustotal",       // VirusTotal API
+    "sfp_shodan",           // Shodan API
+    "sfp_securitytrails",   // SecurityTrails API
+    "sfp_censys",           // Censys API
+    // Analysis Modules
+    "sfp_webanalyze",       // Web analysis
+    "sfp_ssl",              // SSL certificate analysis
+    "sfp_certificate",      // Certificate parsing
+    // Active Modules
+    "sfp_portscan",         // Port scanning
   ];
 
   useEffect(() => {
@@ -80,14 +96,29 @@ export default function ExternalSurfaceMonitoringPage() {
         }
         const data = await res.json();
         setStatus(data.status || null);
-        if (data.error) {
+        
+        // Handle scan completion
+        if (data.status === "finished") {
+          setScanResult(data); // Store entire response including result
+          // Only show error if scan truly failed (no results)
+          if (data.result && (data.result.entities_found > 0 || data.result.data_points > 0)) {
+            // Scan succeeded with results - clear any errors
+            setError(null);
+          } else if (data.error && (!data.result || data.result.entities_found === 0)) {
+            // Only show error if there are no results
+            setError(data.error);
+          } else {
+            setError(null);
+          }
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        } else if (data.error) {
+          // Show error for non-finished scans
           setError(data.error);
         } else {
           setError(null);
         }
-        if (data.status === "finished") {
-          setScanResult(data.result || null);
-          if (intervalRef.current) clearInterval(intervalRef.current);
+        if (data.warning) {
+          setWarning(data.warning);
         }
       } catch (err) {
         console.error("Polling error:", err);
@@ -228,7 +259,20 @@ export default function ExternalSurfaceMonitoringPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {error && (
+                  {error && status !== "finished" && (
+                    <div className="p-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+                      <div className="flex items-start gap-2">
+                        <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-red-800 dark:text-red-200">Error</p>
+                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show error only if scan finished with no results */}
+                  {error && status === "finished" && (!scanResult?.result || scanResult.result.entities_found === 0) && (
                     <div className="p-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-950/20 dark:border-red-800">
                       <div className="flex items-start gap-2">
                         <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -270,20 +314,296 @@ export default function ExternalSurfaceMonitoringPage() {
                     </div>
                   )}
 
-                  {scanResult && (
-                    <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{scanResult.entities_found || 0}</p>
-                        <p className="text-xs text-muted-foreground">Entities</p>
+                  {scanResult && scanResult.result && (
+                    <div className="space-y-6">
+                      {/* Summary Statistics */}
+                      <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-primary">{scanResult.result.entities_found || 0}</p>
+                          <p className="text-xs text-muted-foreground">Entities</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-blue-600">{scanResult.result.data_points || 0}</p>
+                          <p className="text-xs text-muted-foreground">Data Points</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-green-600">{scanResult.result.modules_run || 0}</p>
+                          <p className="text-xs text-muted-foreground">Modules Run</p>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-blue-600">{scanResult.data_points || 0}</p>
-                        <p className="text-xs text-muted-foreground">Data Points</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">{scanResult.modules_run || 0}</p>
-                        <p className="text-xs text-muted-foreground">Modules Run</p>
-                      </div>
+
+                      {/* Entity Type Distribution Chart */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (() => {
+                        const entityTypeCounts: Record<string, number> = {};
+                        scanResult.result.entities.forEach((entity: any) => {
+                          const type = entity.type || 'UNKNOWN';
+                          entityTypeCounts[type] = (entityTypeCounts[type] || 0) + 1;
+                        });
+                        const chartData = Object.entries(entityTypeCounts)
+                          .map(([name, count]) => ({ name, count }))
+                          .sort((a, b) => b.count - a.count)
+                          .slice(0, 10);
+
+                        return (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Entity Type Distribution</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[300px] w-full">
+                                <ResponsiveContainer>
+                                  <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis 
+                                      dataKey="name"
+                                      stroke="hsl(var(--muted-foreground))"
+                                      fontSize={12}
+                                      tickLine={false}
+                                      axisLine={false}
+                                      angle={-45}
+                                      textAnchor="end"
+                                      height={80}
+                                    />
+                                    <YAxis
+                                      stroke="hsl(var(--muted-foreground))"
+                                      fontSize={12}
+                                      tickLine={false}
+                                      axisLine={false}
+                                    />
+                                    <Tooltip
+                                      cursor={{ fill: "hsl(var(--muted))" }}
+                                      contentStyle={{
+                                        backgroundColor: "hsl(var(--background))",
+                                        borderColor: "hsl(var(--border))",
+                                        borderRadius: "var(--radius)",
+                                      }}
+                                    />
+                                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+
+                      {/* Module Performance Chart */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (() => {
+                        const moduleCounts: Record<string, number> = {};
+                        scanResult.result.entities.forEach((entity: any) => {
+                          const module = entity.module ? entity.module.replace('sfp_', '') : 'Unknown';
+                          moduleCounts[module] = (moduleCounts[module] || 0) + 1;
+                        });
+                        const chartData = Object.entries(moduleCounts)
+                          .map(([name, value]) => ({ name, value }))
+                          .sort((a, b) => b.value - a.value)
+                          .slice(0, 8);
+
+                        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
+
+                        return (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Top Modules by Discoveries</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="h-[300px] w-full">
+                                <ResponsiveContainer>
+                                  <PieChart>
+                                    <Pie
+                                      data={chartData}
+                                      cx="50%"
+                                      cy="50%"
+                                      labelLine={false}
+                                      label={({ name, value }) => `${name}: ${value}`}
+                                      outerRadius={100}
+                                      fill="#8884d8"
+                                      dataKey="value"
+                                    >
+                                      {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                      ))}
+                                    </Pie>
+                                    <Tooltip
+                                      contentStyle={{
+                                        backgroundColor: "hsl(var(--background))",
+                                        borderColor: "hsl(var(--border))",
+                                        borderRadius: "var(--radius)",
+                                      }}
+                                    />
+                                    <Legend />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                      
+                      {/* Export Section - Always show if there are results */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (
+                        <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                          <div className="mb-3">
+                            <p className="text-sm font-semibold">Export Results</p>
+                            <p className="text-xs text-muted-foreground">
+                              Download scan results in JSON or CSV format
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {/* JSON Export Button */}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={async () => {
+                                if (jobId && scanResult.result) {
+                                  try {
+                                    setError(null);
+                                    const res = await fetch(`${API_BASE}/api/v1/external-surface/export-json/${jobId}`, {
+                                      method: 'GET'
+                                    });
+                                    if (res.ok) {
+                                      const blob = await res.blob();
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      const targetName = currentConfig?.target || scanResult?.target || 'scan';
+                                      a.download = `spiderfoot_${targetName.replace(/\./g, '_')}_${Date.now()}.json`;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    } else {
+                                      const errorData = await res.json().catch(() => ({}));
+                                      setError(errorData.detail || "Failed to generate JSON");
+                                    }
+                                  } catch (err) {
+                                    console.error("Failed to export JSON:", err);
+                                    setError(err instanceof Error ? err.message : "Failed to generate JSON");
+                                  }
+                                }
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                            >
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Export JSON
+                            </Button>
+
+                            {/* CSV Export Button */}
+                            {scanResult.result.csv_download_url ? (
+                              <a
+                                href={`${API_BASE}${scanResult.result.csv_download_url}`}
+                                download={scanResult.result.csv_filename || "scan_results.csv"}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 flex-1 justify-center"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download CSV
+                              </a>
+                            ) : (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={async () => {
+                                  // Generate CSV on-demand from existing results
+                                  if (jobId && scanResult.result.entities) {
+                                    try {
+                                      setError(null);
+                                      const res = await fetch(`${API_BASE}/api/v1/external-surface/export-csv/${jobId}`, {
+                                        method: 'GET'
+                                      });
+                                      if (res.ok) {
+                                        const blob = await res.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        const targetName = currentConfig?.target || scanResult?.target || 'scan';
+                                        a.download = `spiderfoot_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                        
+                                        // Update scan result to show CSV is available
+                                        setScanResult({
+                                          ...scanResult,
+                                          result: {
+                                            ...scanResult.result,
+                                            csv_filename: a.download,
+                                            csv_download_url: `/api/v1/external-surface/export-csv/${jobId}`
+                                          }
+                                        });
+                                      } else {
+                                        const errorData = await res.json().catch(() => ({}));
+                                        setError(errorData.detail || "Failed to generate CSV");
+                                      }
+                                    } catch (err) {
+                                      console.error("Failed to export CSV:", err);
+                                      setError(err instanceof Error ? err.message : "Failed to generate CSV");
+                                    }
+                                  }
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                              >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export CSV
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Discovered Entities Table */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <span>Discovered Entities</span>
+                              <Badge variant="secondary">{scanResult.result.entities.length} total</Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Value</TableHead>
+                                    <TableHead>Module</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {scanResult.result.entities.slice(0, 100).map((entity: any, idx: number) => (
+                                    <TableRow key={idx}>
+                                      <TableCell>
+                                        <Badge variant="outline" className="text-xs">
+                                          {entity.type || 'UNKNOWN'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="font-mono text-sm max-w-md truncate" title={entity.value}>
+                                        {entity.value}
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground text-xs">
+                                        {entity.module ? entity.module.replace('sfp_', '') : 'N/A'}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                              {scanResult.result.entities.length > 100 && (
+                                <div className="text-center p-4 text-sm text-muted-foreground">
+                                  Showing first 100 of {scanResult.result.entities.length} entities. 
+                                  Export to CSV/JSON to see all results.
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   )}
 
@@ -299,49 +619,13 @@ export default function ExternalSurfaceMonitoringPage() {
 
         {/* Dashboard when no scan running */}
         {!jobId && !status && (
-          <>
-            <Card className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-[#0c1729] dark:to-[#121f35] shadow-sm mx-6">
-              <CardContent className="py-4 flex justify-around">
-                {[
-                  { label: "Domains", color: "bg-blue-600", count: 0, icon: "🌐" },
-                  { label: "IPs", color: "bg-green-500", count: 0, icon: "📍" },
-                  { label: "Services", color: "bg-purple-400", count: 0, icon: "🔌" },
-                ].map((item) => (
-                  <div key={item.label} className="flex flex-col items-center gap-1">
-                    <span className="text-2xl">{item.icon}</span>
-                    <span className="text-lg font-bold">{item.count}</span>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                      {item.label}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 px-6">
-              {[
-                { title: "Recent Scans", subtitle: "Latest external surface scans", icon: "📄" },
-                { title: "Discovered Assets", subtitle: "External assets found", icon: "🔍" },
-                { title: "Threat Intelligence", subtitle: "Security findings", icon: "🛡️" },
-                { title: "Scan History", subtitle: "Previous scans summary", icon: "🕑" },
-              ].map((card) => (
-                <Card
-                  key={card.title}
-                  className="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-xl bg-gradient-to-br from-slate-100 to-white dark:from-[#16233a] dark:to-[#0f1b2e] border-0"
-                >
-                  <CardContent className="p-6 space-y-2">
-                    <div className="text-3xl mb-1">{card.icon}</div>
-                    <h3 className="font-semibold text-lg leading-snug">
-                      {card.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {card.subtitle}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
+          <div className="px-6 py-12 text-center">
+            <Globe className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">No Active Scan</h2>
+            <p className="text-muted-foreground mb-6">
+              Start a scan from the right panel to discover external surface assets
+            </p>
+          </div>
         )}
       </div>
 

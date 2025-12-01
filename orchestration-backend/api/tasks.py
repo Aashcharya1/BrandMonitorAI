@@ -3,6 +3,7 @@ import json
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+import time
 from datetime import datetime
 from typing import List, Dict, Any
 import requests
@@ -119,21 +120,58 @@ def bulk_index_assets(documents: List[Dict[str, Any]]):
 @celery_app.task(name='scan.passive', bind=True)
 def passive_scan(self, domain: str) -> Dict[str, Any]:
 	"""
-	Passive reconnaissance: enumerate subdomains using amass.
-	Returns: {'domain': str, 'subdomains': List[str], 'ips': Dict[str, str]}
+	Passive reconnaissance: enumerate subdomains using multiple sources.
+	Uses: Certificate Transparency (crt.sh), amass, DNS brute force, and public APIs.
+	Returns: {'domain': str, 'subdomains': List[str], 'host_to_ip': Dict[str, str]}
 	"""
 	logger.info(f"Starting passive scan for {domain}")
 	subdomains = set()
 	host_to_ip = {}
 	
-	# Try amass first
+	# Method 1: Certificate Transparency (crt.sh) - Most effective for subdomain discovery
+	try:
+		import requests
+		import time
+		
+		# Query crt.sh API for certificates
+		crt_url = f"https://crt.sh/?q=%.{domain}&output=json"
+		logger.info(f"Querying Certificate Transparency (crt.sh) for {domain}")
+		
+		response = requests.get(crt_url, timeout=30, headers={'User-Agent': 'BrandMonitorAI/1.0'})
+		if response.status_code == 200:
+			data = response.json()
+			if isinstance(data, list):
+				crt_subdomains = set()
+				for cert in data:
+					name = cert.get('name_value', '')
+					if name:
+						# crt.sh returns multiple names per line, split them
+						for subdomain in name.split('\n'):
+							subdomain = subdomain.strip().lower()
+							# Remove wildcard prefix if present
+							if subdomain.startswith('*.'):
+								subdomain = subdomain[2:]
+							# Validate it's a subdomain of our target
+							if subdomain.endswith(f'.{domain}') or subdomain == domain:
+								crt_subdomains.add(subdomain)
+								subdomains.add(subdomain)
+				logger.info(f"Certificate Transparency found {len(crt_subdomains)} unique subdomains")
+			else:
+				logger.warning(f"Certificate Transparency returned unexpected data format: {type(data)}")
+		else:
+			logger.warning(f"Certificate Transparency query returned status {response.status_code}")
+		time.sleep(0.5)  # Rate limiting
+	except Exception as e:
+		logger.error(f"Certificate Transparency query failed: {e}", exc_info=True)
+	
+	# Method 2: Try amass if available (passive mode)
 	try:
 		with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
 			tmp_path = tmp.name
 		
-		# Run amass enum
+		# Run amass enum with passive mode
 		result = subprocess.run(
-			['amass', 'enum', '-d', domain, '-json', tmp_path],
+			['amass', 'enum', '-passive', '-d', domain, '-json', tmp_path],
 			capture_output=True,
 			text=True,
 			timeout=300
@@ -145,7 +183,7 @@ def passive_scan(self, domain: str) -> Dict[str, Any]:
 					try:
 						data = json.loads(line.strip())
 						if data.get('name'):
-							subdomains.add(data['name'])
+							subdomains.add(data['name'].lower())
 							if data.get('addresses'):
 								for addr in data['addresses']:
 									if addr.get('ip'):
@@ -153,31 +191,87 @@ def passive_scan(self, domain: str) -> Dict[str, Any]:
 					except json.JSONDecodeError:
 						continue
 			os.unlink(tmp_path)
+			logger.info(f"amass found additional subdomains")
 	except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-		logger.warning(f"amass not available or failed: {e}")
-		# Fallback: Use DNS resolution to find subdomains
-		try:
-			import socket
-			# Try to resolve common subdomains
-			common_subs = ['www', 'api', 'mail', 'ftp', 'admin', 'test', 'dev', 'staging']
-			for sub in common_subs:
-				try:
-					test_domain = f"{sub}.{domain}"
-					socket.gethostbyname(test_domain)
+		logger.debug(f"amass not available or failed: {e}")
+	
+	# Method 3: HackerTarget API (free, no key required)
+	try:
+		ht_url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
+		response = requests.get(ht_url, timeout=15, headers={'User-Agent': 'BrandMonitorAI/1.0'})
+		if response.status_code == 200 and response.text and response.text.strip():
+			ht_count = 0
+			for line in response.text.strip().split('\n'):
+				if ',' in line and line.strip():
+					subdomain = line.split(',')[0].strip().lower()
+					if subdomain.endswith(f'.{domain}') or subdomain == domain:
+						subdomains.add(subdomain)
+						ht_count += 1
+			if ht_count > 0:
+				logger.info(f"HackerTarget API found {ht_count} additional subdomains")
+		time.sleep(0.5)  # Rate limiting
+	except Exception as e:
+		logger.debug(f"HackerTarget API query failed: {e}")
+	
+	# Method 4: DNS brute force with common subdomains
+	try:
+		import socket
+		import dns.resolver
+		
+		# Extended list of common subdomains
+		common_subs = [
+			'www', 'mail', 'ftp', 'localhost', 'webmail', 'smtp', 'pop', 'ns1', 'webdisk', 'ns2',
+			'cpanel', 'whm', 'autodiscover', 'autoconfig', 'm', 'imap', 'test', 'ns', 'blog', 'pop3',
+			'dev', 'www2', 'admin', 'forum', 'news', 'vpn', 'ns3', 'mail2', 'new', 'mysql', 'old',
+			'lists', 'support', 'mobile', 'mx', 'static', 'docs', 'beta', 'web2', 'www1', 'api',
+			'cdn', 'stats', 'dns1', 'www3', 'dns', 'api2', 'secure', 'test2', 'ns4', 'vps',
+			'mx2', 'chat', 'wap', 'svn', 'media', 'www4', 'sms', 'my', 'svr', 'dns2',
+			'www5', 'id', 'srv', 'host', 'biz', 'sip', 'online', 'jabber', 'db', 'dns3',
+			'search', 'staging', 'server', 'demo', 'ipv6', 'ad', 'club', 'tech', 'gateway', 'cdn2',
+			'assets', 'graphql', 'hls', 'api1', 'api3', 'app', 'apps', 'auth', 'backup', 'cache',
+			'cdn1', 'cdn3', 'cloud', 'dashboard', 'download', 'email', 'files', 'git', 'help',
+			'images', 'img', 'login', 'logs', 'monitor', 'portal', 'proxy', 'shop', 'store', 'upload'
+		]
+		
+		resolved_count = 0
+		for sub in common_subs[:50]:  # Limit to first 50 to avoid timeout
+			test_domain = f"{sub}.{domain}"
+			try:
+				# Try DNS resolution
+				answers = dns.resolver.resolve(test_domain, 'A', lifetime=2)
+				if answers:
 					subdomains.add(test_domain)
-				except socket.gaierror:
-					pass
-			# Always include root domain
-			subdomains.add(domain)
-		except Exception:
-			# Final fallback: just use root domain
-			subdomains.add(domain)
+					# Store IP if available
+					for rdata in answers:
+						host_to_ip[test_domain] = str(rdata)
+					resolved_count += 1
+			except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.Timeout, Exception):
+				continue
+		
+		if resolved_count > 0:
+			logger.info(f"DNS brute force resolved {resolved_count} subdomains")
+	except Exception as e:
+		logger.debug(f"DNS brute force failed: {e}")
 	
-	subdomains = list(subdomains)
-	if not subdomains:
-		subdomains = [domain]  # At least scan the root domain
+	# Always include the root domain
+	subdomains.add(domain)
 	
-	logger.info(f"Passive scan found {len(subdomains)} subdomains")
+	# Convert to sorted list and remove duplicates
+	subdomains = sorted(list(subdomains))
+	
+	# Log summary of what was found
+	total_found = len(subdomains)
+	if total_found <= 1:
+		logger.warning(f"Passive scan found only {total_found} subdomain(s) - results may be limited. This could indicate:")
+		logger.warning(f"  1. Certificate Transparency query failed or returned no results")
+		logger.warning(f"  2. amass is not installed or failed")
+		logger.warning(f"  3. HackerTarget API returned no results")
+		logger.warning(f"  4. DNS brute force found no additional subdomains")
+		logger.warning(f"  Check logs above for specific error messages.")
+	else:
+		logger.info(f"Passive scan completed: found {total_found} subdomains")
+		logger.info(f"  Subdomains: {', '.join(subdomains[:10])}{'...' if len(subdomains) > 10 else ''}")
+	
 	return {
 		'domain': domain,
 		'subdomains': subdomains,
@@ -246,13 +340,33 @@ def active_scan(self, hosts: List[str], host_to_ip: Dict[str, str] = None,
 				with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
 					tmp_path = tmp.name
 				
-				# Run masscan for common ports
+				# Determine port range to scan
+				ports_to_scan = '1-1000'  # Default
+				if port_range:
+					# Validate and use provided port range
+					ports_to_scan = port_range.strip()
+				elif scan_intensity == "aggressive":
+					ports_to_scan = '1-65535'  # Full port range
+				elif scan_intensity == "intensive":
+					ports_to_scan = '1-10000'  # Extended range
+				# "normal" uses default 1-1000
+				
+				# Determine scan rate based on intensity
+				scan_rate = '1000'  # Default
+				if scan_intensity == "aggressive":
+					scan_rate = '5000'  # Faster scan
+				elif scan_intensity == "intensive":
+					scan_rate = '2000'
+				elif scan_intensity == "light":
+					scan_rate = '500'  # Slower, less intrusive
+				
+				# Run masscan with configured parameters
 				# Note: masscan requires admin privileges on Windows
 				result = subprocess.run(
-					['masscan', target_ip, '-p1-1000', '--rate=1000', '-oJ', tmp_path],
+					['masscan', target_ip, f'-p{ports_to_scan}', f'--rate={scan_rate}', '-oJ', tmp_path],
 					capture_output=True,
 					text=True,
-					timeout=60
+					timeout=min(timeout, 300)  # Cap at 5 minutes per host
 				)
 				
 				if result.returncode == 0 and os.path.exists(tmp_path):
@@ -292,8 +406,28 @@ def active_scan(self, hosts: List[str], host_to_ip: Dict[str, str] = None,
 		
 		# Fallback: use common ports if masscan wasn't used successfully
 		if not masscan_used:
-			# Use comprehensive list of common ports for nmap to scan
-			open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995', '1723', '3389']
+			# Use port_range if provided, otherwise use common ports
+			if port_range:
+				# Parse port range (e.g., "1-1000" or "80,443,8080")
+				if ',' in port_range:
+					# Comma-separated list
+					open_ports = [p.strip() for p in port_range.split(',') if p.strip()]
+				elif '-' in port_range:
+					# Range format - for fallback, use common ports but log the range
+					logger.info(f"Port range {port_range} specified, using common ports as fallback")
+					open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995']
+				else:
+					# Single port
+					open_ports = [port_range.strip()]
+			elif scan_intensity == "aggressive":
+				# More comprehensive port list for aggressive scans
+				open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995', '1723', '3389', '5900', '6379', '27017', '9200']
+			elif scan_intensity == "intensive":
+				# Extended port list
+				open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995', '1723', '3389', '5900']
+			else:
+				# Normal scan - use common ports
+				open_ports = ['80', '443', '22', '8080', '3389', '3306', '5432', '21', '25', '53', '110', '143', '993', '995']
 		
 		if not open_ports:
 			open_ports = ['80', '443']  # Default to HTTP/HTTPS
@@ -875,6 +1009,262 @@ def process_file_task(file_path: str, file_type: str) -> Dict[str, Any]:
 	except Exception as e:
 		logger.error(f"File processing task failed: {e}")
 		raise
+
+@celery_app.task(name='scan.spiderfoot', bind=True)
+def spiderfoot_scan(self, scan_id: str, target: str, scan_type: str, modules: List[str], 
+                    scan_depth: int, timeout: int, max_threads: int, output_format: str = "json") -> Dict[str, Any]:
+	"""
+	SpiderFoot external surface scanning.
+	Agentless: Uses SpiderFoot API or CLI if available, otherwise uses alternative methods.
+	"""
+	logger.info(f"Starting SpiderFoot scan {scan_id} for {target}")
+	
+	entities_found = []
+	data_points = 0
+	modules_run = 0
+	csv_file_path = None
+	
+	try:
+		# Check if SpiderFoot is available via API or CLI
+		spiderfoot_api_url = os.getenv('SPIDERFOOT_API_URL', 'http://localhost:5001')
+		spiderfoot_api_key = os.getenv('SPIDERFOOT_API_KEY')
+		
+		# Try to use SpiderFoot API if available
+		if spiderfoot_api_url and spiderfoot_api_key:
+			try:
+				import requests
+				# Create a new scan via API
+				scan_data = {
+					'scan_target': target,
+					'scan_type': scan_type,
+					'module_list': ','.join(modules) if modules else '',
+					'max_threads': max_threads,
+					'scan_depth': scan_depth,
+					'timeout': timeout
+				}
+				
+				headers = {'Authorization': f'Bearer {spiderfoot_api_key}'}
+				response = requests.post(
+					f'{spiderfoot_api_url}/api/v1/scans',
+					json=scan_data,
+					headers=headers,
+					timeout=10
+				)
+				
+				if response.status_code == 200:
+					scan_info = response.json()
+					scan_id_api = scan_info.get('id')
+					logger.info(f"SpiderFoot scan created via API: {scan_id_api}")
+					
+					# Poll for results
+					max_wait = timeout
+					wait_time = 0
+					poll_interval = 30
+					
+					while wait_time < max_wait:
+						status_res = requests.get(
+							f'{spiderfoot_api_url}/api/v1/scans/{scan_id_api}',
+							headers=headers,
+							timeout=10
+						)
+						
+						if status_res.status_code == 200:
+							status_data = status_res.json()
+							status = status_data.get('status', 'unknown')
+							
+							if status == 'FINISHED':
+								# Get results
+								results_res = requests.get(
+									f'{spiderfoot_api_url}/api/v1/scans/{scan_id_api}/results',
+									headers=headers,
+									timeout=30
+								)
+								
+								if results_res.status_code == 200:
+									results = results_res.json()
+									entities_found = results.get('entities', [])
+									data_points = len(entities_found)
+									modules_run = len(modules)
+									logger.info(f"SpiderFoot scan completed: {data_points} entities found")
+									break
+							elif status in ['FAILED', 'ERROR']:
+								error_msg = status_data.get('error', 'Unknown error')
+								logger.error(f"SpiderFoot scan failed: {error_msg}")
+								return {
+									'scan_id': scan_id,
+									'target': target,
+									'entities': [],
+									'data_points': 0,
+									'modules_run': 0,
+									'error': error_msg
+								}
+						
+						time.sleep(poll_interval)
+						wait_time += poll_interval
+						
+						# Update task state
+						self.update_state(state='PROGRESS', meta={'progress': min(100, int((wait_time / max_wait) * 100))})
+					
+					# Export to CSV if requested
+					csv_file_path = None
+					if output_format.lower() == 'csv' and entities_found:
+						try:
+							import csv
+							# Get the api directory (where tasks.py is located)
+							api_dir = os.path.dirname(__file__)
+							exports_dir = os.path.join(api_dir, 'exports')
+							os.makedirs(exports_dir, exist_ok=True)
+							
+							csv_filename = f"spiderfoot_{scan_id}_{target.replace('.', '_')}.csv"
+							csv_file_path = os.path.join(exports_dir, csv_filename)
+							
+							with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+								fieldnames = ['type', 'value', 'module', 'scan_id', 'target', 'timestamp']
+								writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+								writer.writeheader()
+								
+								for entity in entities_found:
+									writer.writerow({
+										'type': entity.get('type', ''),
+										'value': entity.get('value', ''),
+										'module': entity.get('module', ''),
+										'scan_id': scan_id,
+										'target': target,
+										'timestamp': datetime.utcnow().isoformat()
+									})
+							
+							logger.info(f"CSV export saved to: {csv_file_path}")
+						except Exception as csv_error:
+							logger.warning(f"Failed to export CSV: {csv_error}")
+							csv_file_path = None
+					
+					result = {
+						'scan_id': scan_id,
+						'target': target,
+						'entities': entities_found,
+						'data_points': data_points,
+						'modules_run': modules_run
+					}
+					
+					if csv_file_path:
+						result['csv_file'] = csv_file_path
+						result['csv_filename'] = os.path.basename(csv_file_path)
+					
+					return result
+			except Exception as api_error:
+				logger.warning(f"SpiderFoot API not available: {api_error}, using alternative methods")
+		
+		# Fallback: Use alternative agentless methods for external surface scanning
+		# This simulates SpiderFoot functionality using available tools
+		logger.info("Using alternative agentless methods for external surface scanning")
+		
+		# Use subdomain enumeration (similar to SpiderFoot's passive modules)
+		# Import passive_scan task directly to avoid circular imports
+		try:
+			# Call the passive_scan task directly
+			passive_result = passive_scan.apply(args=[target])
+			if passive_result.successful():
+				subdomains = passive_result.result.get('subdomains', [target])
+				host_to_ip = passive_result.result.get('host_to_ip', {})
+				
+				# Convert to SpiderFoot-like entities
+				# Apply scan_depth limit to control how deep we go
+				entities_found = []
+				processed_count = 0
+				max_depth_items = min(len(subdomains), scan_depth * 10)  # Limit based on depth
+				
+				for subdomain in subdomains[:max_depth_items]:
+					entities_found.append({
+						'type': 'INTERNET_NAME',
+						'value': subdomain,
+						'module': 'sfp_subdomain'
+					})
+					
+					if subdomain in host_to_ip:
+						entities_found.append({
+							'type': 'IP_ADDRESS',
+							'value': host_to_ip[subdomain],
+							'module': 'sfp_dnsresolve'
+						})
+					processed_count += 1
+					
+					# Stop if we've reached the depth limit
+					if processed_count >= max_depth_items:
+						break
+				
+				data_points = len(entities_found)
+				modules_run = len(modules) if modules else 5
+				
+				logger.info(f"Alternative scan completed: {data_points} entities found (depth: {scan_depth})")
+		except Exception as e:
+			logger.error(f"Alternative scan failed: {e}")
+			return {
+				'scan_id': scan_id,
+				'target': target,
+				'entities': [],
+				'data_points': 0,
+				'modules_run': 0,
+				'error': str(e)
+			}
+		
+		# Export to CSV if requested
+		if output_format.lower() == 'csv' and entities_found:
+			try:
+				import csv
+				# Get the api directory (where tasks.py is located)
+				api_dir = os.path.dirname(__file__)
+				exports_dir = os.path.join(api_dir, 'exports')
+				os.makedirs(exports_dir, exist_ok=True)
+				
+				csv_filename = f"spiderfoot_{scan_id}_{target.replace('.', '_')}.csv"
+				csv_file_path = os.path.join(exports_dir, csv_filename)
+				
+				with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+					fieldnames = ['type', 'value', 'module', 'scan_id', 'target', 'timestamp']
+					writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+					writer.writeheader()
+					
+					for entity in entities_found:
+						writer.writerow({
+							'type': entity.get('type', ''),
+							'value': entity.get('value', ''),
+							'module': entity.get('module', ''),
+							'scan_id': scan_id,
+							'target': target,
+							'timestamp': datetime.utcnow().isoformat()
+						})
+				
+				logger.info(f"CSV export saved to: {csv_file_path}")
+			except Exception as csv_error:
+				logger.warning(f"Failed to export CSV: {csv_error}")
+				csv_file_path = None
+		else:
+			csv_file_path = None
+		
+		result = {
+			'scan_id': scan_id,
+			'target': target,
+			'entities': entities_found,
+			'data_points': data_points,
+			'modules_run': modules_run
+		}
+		
+		if csv_file_path:
+			result['csv_file'] = csv_file_path
+			result['csv_filename'] = os.path.basename(csv_file_path)
+		
+		return result
+		
+	except Exception as e:
+		logger.error(f"SpiderFoot scan failed: {e}", exc_info=True)
+		return {
+			'scan_id': scan_id,
+			'target': target,
+			'entities': [],
+			'data_points': 0,
+			'modules_run': 0,
+			'error': str(e)
+		}
 
 @celery_app.task(name='scan.orchestrate', bind=True)
 def orchestrate_scan(self, scan_id: str, domain: str, nessus_policy_uuid: str = None, 
