@@ -33,31 +33,31 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Next.js Frontend                         │
 │                  http://localhost:9002                      │
-│  - Active/Passive Monitoring Page                         │
-│  - External Surface Monitoring (ASM)                      │
-│  - Chat Interface (LibreChat-powered)                     │
-│  - Real-time Status Updates                                │
+│  - Active/Passive Monitoring Page                           │
+│  - External Surface Monitoring (ASM)                        │
+│  - Chat Interface (LibreChat-powered)                       │
+│  - Real-time Status Updates                                 │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      │ HTTP/API Requests
                      ▼
 ┌────────────────────────────────────────────────────────────┐
-│              FastAPI Server (Central Orchestrator)          │
+│              FastAPI Server (Central Orchestrator)         │
 │                  http://localhost:8000                     │
 │                                                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │   Auth       │  │   Memory     │  │   AI         │    │
-│  │   (JWT +     │  │   Manager    │  │   Manager    │    │
-│  │   Redis)     │  │   (Meili+   │  │   (Routes)   │    │
-│  │              │  │   Redis)     │  │              │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
-│         │                 │                 │             │
-│         ▼                 ▼                 ▼             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │  MongoDB     │  │  Redis       │  │  LibreChat   │    │
-│  │  (Users +    │  │  (Session    │  │  (Chat API)  │    │
-│  │   Chats)     │  │   Cache)     │  │              │    │
-│  └──────────────┘  └──────────────┘  └──────┬───────┘    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Auth       │  │   Memory     │  │   AI         │      │
+│  │   (JWT +     │  │   Manager    │  │   Manager    │      │
+│  │   Redis)     │  │   (Meili+    │  │  (Routes)    │      │
+│  │              │  │   Redis)     │  │              │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                 │                 │              │
+│         ▼                 ▼                 ▼              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  MongoDB     │  │  Redis       │  │  LibreChat   │      │
+│  │  (Users +    │  │  (Session    │  │  (Chat API)  │      │
+│  │   Chats)     │  │   Cache)     │  │              │      │
+│  └──────────────┘  └──────────────┘  └──────┬───────┘      │
 └─────────────────────────────────────────────┼──────────────┘
                                               │
                                               ▼
@@ -74,16 +74,16 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
                                               ▼
                           ┌───────────────────────────────────┐
                           │      Storage & Analytics          │
-                          │  ┌──────────┐  ┌──────────┐      │
-                          │  │ MongoDB  │  │PostgreSQL│      │
-                          │  │(Users)   │  │(Results) │      │
-                          │  └────┬─────┘  └──────────┘      │
+                          │  ┌──────────┐  ┌──────────┐       │
+                          │  │ MongoDB  │  │PostgreSQL│       │
+                          │  │(Users)   │  │(Results) │       │
+                          │  └────┬─────┘  └──────────┘       │
                           │       │                           │
                           │       ▼                           │
-                          │  ┌──────────┐  ┌──────────┐     │
-                          │  │Elastic   │  │Meilisearch│     │
-                          │  │search    │  │(Memory)   │     │
-                          │  └────┬─────┘  └──────────┘     │
+                          │  ┌──────────┐  ┌───────────┐      │
+                          │  │Elastic   │  │Meilisearch│      │
+                          │  │search    │  │(Memory)   │      │
+                          │  └────┬─────┘  └───────────┘      │
                           │       │                           │
                           │       ▼                           │
                           │  ┌──────────┐                     │
