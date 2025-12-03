@@ -11,8 +11,18 @@ from elasticsearch import Elasticsearch, helpers
 from meilisearch import Client as MeiliClient
 from celery_app import celery_app
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
+
+# Add current directory to Python path for Celery imports
+# This ensures 'services' module can be imported when Celery workers run
+# Use absolute path to ensure it works regardless of working directory
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+# Normalize the path to handle any path separator issues
+_current_dir = os.path.normpath(_current_dir)
+if _current_dir not in sys.path:
+	sys.path.insert(0, _current_dir)
 
 # Elasticsearch
 ES_URL = os.getenv('ES_URL')
@@ -991,6 +1001,9 @@ def process_file_task(file_path: str, file_type: str) -> Dict[str, Any]:
 	Handles OCR, text extraction, and analysis.
 	"""
 	import asyncio
+	# Ensure path is set before importing
+	if _current_dir not in sys.path:
+		sys.path.insert(0, _current_dir)
 	from services.file_processor import file_processor
 	
 	logger.info(f"Processing file: {file_path} (type: {file_type})")
@@ -1011,14 +1024,31 @@ def process_file_task(file_path: str, file_type: str) -> Dict[str, Any]:
 		raise
 
 @celery_app.task(name='scan.spiderfoot', bind=True)
-def spiderfoot_scan(self, scan_id: str, target: str, scan_type: str, modules: List[str], 
-                    scan_depth: int, timeout: int, max_threads: int, output_format: str = "json") -> Dict[str, Any]:
+def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type: str, modules: List[str], 
+					scan_depth: int, timeout: int, max_threads: int, output_format: str = "json") -> Dict[str, Any]:
+	# Initialize at function level so fallback can see them
+	spiderfoot_success = False
+	entities_found = []
+	modules_run = 0
+	data_points = 0
 	"""
 	SpiderFoot external surface scanning.
 	Agentless: Uses SpiderFoot API or CLI if available, otherwise uses alternative methods.
-	"""
-	logger.info(f"Starting SpiderFoot scan {scan_id} for {target}")
 	
+	Supports multiple target types:
+	- domain: Domain name (e.g., target.com)
+	- ip: IPv4/IPv6 address (e.g., 192.168.1.1)
+	- asn: Autonomous System Number (e.g., AS1234)
+	- netblock: Subnet/CIDR (e.g., 192.168.0.0/24)
+	"""
+	logger.info(f"Starting SpiderFoot scan {scan_id} for {target} (type: {target_type})")
+	
+	# Reload environment variables in case they were added after worker started
+	from dotenv import load_dotenv
+	load_dotenv()  # Reload .env file
+	
+	# Initialize at function level so fallback can see them
+	spiderfoot_success = False
 	entities_found = []
 	data_points = 0
 	modules_run = 0
@@ -1026,84 +1056,516 @@ def spiderfoot_scan(self, scan_id: str, target: str, scan_type: str, modules: Li
 	
 	try:
 		# Check if SpiderFoot is available via API or CLI
+		# Reload env vars to get latest values
 		spiderfoot_api_url = os.getenv('SPIDERFOOT_API_URL', 'http://localhost:5001')
 		spiderfoot_api_key = os.getenv('SPIDERFOOT_API_KEY')
 		
+		logger.info(f"🔍 Checking SpiderFoot API at: {spiderfoot_api_url} (API key: {'SET' if spiderfoot_api_key else 'NOT SET'})")
+		
+		# If URL contains localhost, also try 127.0.0.1 as fallback
+		urls_to_try = [spiderfoot_api_url]
+		if 'localhost' in spiderfoot_api_url:
+			urls_to_try.append(spiderfoot_api_url.replace('localhost', '127.0.0.1'))
+		
 		# Try to use SpiderFoot API if available
-		if spiderfoot_api_url and spiderfoot_api_key:
+		# Note: SpiderFoot can run without API key (authentication disabled)
+		# So we try to connect even if API key is not set
+		if spiderfoot_api_url:
 			try:
 				import requests
+				
+				# First, verify SpiderFoot is actually running by checking if we can reach it
+				# Try multiple URLs (localhost and 127.0.0.1) and multiple endpoints
+				health_check_passed = False
+				health_check_error = None
+				working_url = None
+				
+				# Try each URL
+				for test_url in urls_to_try:
+					if health_check_passed:
+						break
+					
+					logger.debug(f"Trying to connect to SpiderFoot at {test_url}...")
+					
+					# Try the root endpoint first
+					try:
+						health_check = requests.get(
+							f'{test_url}/',
+							timeout=10,  # Increased timeout
+							allow_redirects=True
+						)
+						# Any 2xx or 3xx response means SpiderFoot is running
+						if health_check.status_code < 400:
+							health_check_passed = True
+							working_url = test_url
+							spiderfoot_api_url = test_url  # Use the working URL
+							logger.info(f"✅ SpiderFoot API is reachable at {test_url} (Status: {health_check.status_code})")
+							break
+					except requests.RequestException as health_err:
+						health_check_error = health_err
+						logger.debug(f"Failed to connect to {test_url}/: {health_err}")
+						
+						# Try scanlist endpoint as fallback
+						try:
+							scanlist_check = requests.get(
+								f'{test_url}/scanlist',
+								timeout=10
+							)
+							if scanlist_check.status_code < 400:
+								health_check_passed = True
+								working_url = test_url
+								spiderfoot_api_url = test_url  # Use the working URL
+								logger.info(f"✅ SpiderFoot API is reachable at {test_url} (via /scanlist endpoint)")
+								break
+						except Exception as scanlist_err:
+							logger.debug(f"Failed to connect to {test_url}/scanlist: {scanlist_err}")
+				
+				# If health check failed, log detailed error but don't fail immediately
+				# Try to start a scan anyway - sometimes the health check fails but the API works
+				if not health_check_passed:
+					logger.warning(f"⚠️ SpiderFoot health check failed for: {', '.join(urls_to_try)}")
+					logger.warning(f"   Last error: {health_check_error}")
+					logger.warning(f"   Attempting to start scan anyway - health check may be too strict...")
+					# Don't raise exception - try to start scan anyway
+					# If the scan start fails, we'll catch that error
+				
 				# Create a new scan via API
+				# IMPORTANT: Set scan_type to "all" to allow active modules (sfp_spider, sfp_s3bucket, etc.)
+				# If scan_type is "passive", active modules like sfp_spider will be skipped
+				effective_scan_type = scan_type
+				if scan_type == "mvp" or scan_type == "all" or scan_type == "enrichment":
+					# MVP, "all", and "enrichment" scans must allow active scanning for full results
+					effective_scan_type = "all"
+					logger.info(f"Scan type '{scan_type}' mapped to 'all' to enable active modules")
+				elif scan_type == "passive":
+					# Passive scans won't run active modules
+					effective_scan_type = "passive"
+					logger.warning("Passive scan type selected - active modules (sfp_spider, sfp_s3bucket, etc.) will be skipped")
+				
+				# Log which enrichment modules are included
+				enrichment_modules_list = [m for m in modules if m in ['sfp_wappalyzer', 'sfp_httpheader', 'sfp_s3bucket', 'sfp_azure', 'sfp_gcp', 'sfp_spider', 'sfp_shodan', 'sfp_portscan_tcp']]
+				if enrichment_modules_list:
+					logger.info(f"Enrichment modules enabled: {', '.join(enrichment_modules_list)}")
+				else:
+					logger.warning("No enrichment modules (Layers 2-4) in module list - only Layer 1 discovery will run")
+				
+				# SpiderFoot uses /startscan endpoint with form data, not JSON
+				# Module list should be comma-separated without 'module_' prefix
+				# Format: "sfp_crt,sfp_subdomain,sfp_dnsresolve" (not "module_sfp_crt,module_sfp_subdomain")
+				module_list_str = ','.join(modules) if modules else ''
+				
 				scan_data = {
-					'scan_target': target,
-					'scan_type': scan_type,
-					'module_list': ','.join(modules) if modules else '',
-					'max_threads': max_threads,
-					'scan_depth': scan_depth,
-					'timeout': timeout
+					'scanname': f'BrandMonitorAI-{scan_id}',
+					'scantarget': target,
+					'modulelist': module_list_str,  # SpiderFoot expects 'modulelist' not 'module_list'
+					'usecase': effective_scan_type,  # 'all', 'passive', 'footprint', 'investigate'
+					'typelist': '',  # Not using type-based scanning
 				}
 				
-				headers = {'Authorization': f'Bearer {spiderfoot_api_key}'}
+				logger.info(f"SpiderFoot API scan configuration: type={effective_scan_type}, modules={len(modules)}, target_type={target_type}, target={target}")
+				logger.info(f"Module list being sent: {module_list_str[:200]}{'...' if len(module_list_str) > 200 else ''}")
+				
+				# SpiderFoot web UI uses form data, not JSON
+				# Note: SpiderFoot doesn't use Bearer token auth - it uses session-based auth or API key in query params
+				# Try with API key in query params first
+				# IMPORTANT: Include Accept header to get JSON response instead of HTML redirect
 				response = requests.post(
-					f'{spiderfoot_api_url}/api/v1/scans',
-					json=scan_data,
-					headers=headers,
+					f'{spiderfoot_api_url}/startscan',
+					data=scan_data,  # Use form data, not JSON
+					params={'apikey': spiderfoot_api_key} if spiderfoot_api_key else {},
+					headers={'Accept': 'application/json'},
 					timeout=10
 				)
 				
+				logger.info(f"SpiderFoot /startscan response: status={response.status_code}, headers={dict(response.headers)}")
+				
+				# SpiderFoot returns JSON array: ["SUCCESS", scan_id] or ["ERROR", message]
 				if response.status_code == 200:
-					scan_info = response.json()
-					scan_id_api = scan_info.get('id')
-					logger.info(f"SpiderFoot scan created via API: {scan_id_api}")
+					try:
+						response_data = response.json()
+						if isinstance(response_data, list) and len(response_data) >= 2:
+							if response_data[0] == "SUCCESS":
+								scan_id_api = response_data[1]
+								logger.info(f"SpiderFoot scan created via API: {scan_id_api}")
+							else:
+								error_msg = response_data[1] if len(response_data) > 1 else "Unknown error"
+								logger.error(f"SpiderFoot scan creation failed: {error_msg}")
+								raise Exception(f"SpiderFoot API error: {error_msg}")
+						else:
+							# Try to parse as regular JSON
+							scan_id_api = response_data.get('id') or response_data.get('scan_id')
+							if not scan_id_api:
+								raise Exception("Could not parse SpiderFoot API response")
+							logger.info(f"SpiderFoot scan created via API: {scan_id_api}")
+					except ValueError:
+						# Response might be plain text or HTML
+						response_text = response.text
+						logger.error(f"SpiderFoot API returned non-JSON response: {response_text[:200]}")
+						raise Exception(f"SpiderFoot API returned invalid response: {response_text[:200]}")
 					
-					# Poll for results
-					max_wait = timeout
+					# Poll for results using SpiderFoot's web UI endpoints
+					# Use the exact timeout value provided by user (in seconds)
+					max_wait = int(timeout)
 					wait_time = 0
-					poll_interval = 30
+					poll_interval = 30  # Check every 30 seconds
+					last_entity_count = 0
+					no_progress_count = 0
+					
+					logger.info(f"Starting to poll SpiderFoot scan {scan_id_api} (max wait: {max_wait}s, poll interval: {poll_interval}s)")
 					
 					while wait_time < max_wait:
-						status_res = requests.get(
-							f'{spiderfoot_api_url}/api/v1/scans/{scan_id_api}',
-							headers=headers,
-							timeout=10
-						)
+						scan_finished = False
+						scan_status = "UNKNOWN"
 						
-						if status_res.status_code == 200:
-							status_data = status_res.json()
-							status = status_data.get('status', 'unknown')
+						# First, check scan status using scanstatus endpoint
+						try:
+							status_res = requests.get(
+								f'{spiderfoot_api_url}/scanstatus',
+								params={'id': scan_id_api},
+								headers={'Accept': 'application/json'},
+								timeout=10
+							)
 							
-							if status == 'FINISHED':
-								# Get results
-								results_res = requests.get(
-									f'{spiderfoot_api_url}/api/v1/scans/{scan_id_api}/results',
-									headers=headers,
-									timeout=30
-								)
-								
-								if results_res.status_code == 200:
-									results = results_res.json()
-									entities_found = results.get('entities', [])
-									data_points = len(entities_found)
-									modules_run = len(modules)
-									logger.info(f"SpiderFoot scan completed: {data_points} entities found")
-									break
-							elif status in ['FAILED', 'ERROR']:
-								error_msg = status_data.get('error', 'Unknown error')
-								logger.error(f"SpiderFoot scan failed: {error_msg}")
-								return {
-									'scan_id': scan_id,
-									'target': target,
-									'entities': [],
-									'data_points': 0,
-									'modules_run': 0,
-									'error': error_msg
-								}
+							if status_res.status_code == 200:
+								try:
+									status_data = status_res.json()
+									# scanstatus returns: [name, target, created, started, finished, status, ...]
+									if isinstance(status_data, list) and len(status_data) > 5:
+										scan_status = status_data[5]  # Status is at index 5
+										logger.info(f"Scan {scan_id_api} status: {scan_status}")
+										
+										if scan_status in ['FINISHED', 'ERROR-FAILED', 'ABORTED']:
+											scan_finished = True
+											logger.info(f"Scan {scan_id_api} has finished with status: {scan_status}")
+										elif scan_status in ['RUNNING', 'STARTING', 'STARTED']:
+											logger.debug(f"Scan {scan_id_api} is still {scan_status}, continuing to poll...")
+								except (ValueError, IndexError, KeyError) as parse_error:
+									logger.warning(f"Could not parse scan status: {parse_error}")
+						except requests.RequestException as status_error:
+							logger.warning(f"Error checking scan status: {status_error}")
 						
+						# Get current results (even if scan is still running, we want partial results)
+						try:
+							results_res = requests.get(
+								f'{spiderfoot_api_url}/scanexportjsonmulti',
+								params={'ids': scan_id_api},
+								headers={'Accept': 'application/json'},
+								timeout=30
+							)
+							
+							if results_res.status_code == 200:
+								try:
+									results = results_res.json()
+									# SpiderFoot returns array of entities with: data, event_type, module, source_data, etc.
+									if isinstance(results, list):
+										# Convert SpiderFoot format to our format
+										current_entities = []
+										modules_that_ran = set()
+										
+										for item in results:
+											# Skip ROOT events
+											if item.get('event_type') == 'ROOT':
+												continue
+											
+											entity = {
+												'type': item.get('event_type', ''),
+												'value': item.get('data', ''),
+												'module': item.get('module', '')
+											}
+											current_entities.append(entity)
+											
+											module = item.get('module', '')
+											if module:
+												modules_that_ran.add(module)
+										
+										entities_found = current_entities
+										data_points = len(entities_found)
+										modules_run = len(modules_that_ran) if modules_that_ran else 0
+										
+										# Check if we're making progress
+										if data_points > last_entity_count:
+											no_progress_count = 0
+											last_entity_count = data_points
+											logger.info(f"Scan progress: {data_points} entities from {modules_run} modules (status: {scan_status})")
+											logger.info(f"Modules producing output: {', '.join(sorted(modules_that_ran))}")
+										else:
+											no_progress_count += 1
+											logger.debug(f"No new entities in this poll (count: {no_progress_count})")
+										
+										# If scan is finished, break out of loop
+										if scan_finished:
+											logger.info(f"Scan finished. Final results: {data_points} entities from {modules_run} modules")
+											break
+										
+										# If scan is still running but we haven't seen progress in 3 polls (90 seconds), 
+										# continue polling but log a warning
+										if no_progress_count >= 3 and scan_status in ['RUNNING', 'STARTING', 'STARTED']:
+											logger.warning(f"Scan still running but no new entities in {no_progress_count * poll_interval}s. "
+														f"Expected {len(modules)} modules, but only {modules_run} have produced output so far.")
+											logger.warning(f"Missing modules: {', '.join(sorted(set(modules) - modules_that_ran))}")
+										
+								except ValueError:
+									# Not JSON, might be HTML error page
+									logger.warning(f"SpiderFoot returned non-JSON response: {results_res.text[:200]}")
+						except requests.RequestException as req_error:
+							logger.warning(f"Error getting scan results: {req_error}")
+						
+						# If scan is finished, break
+						if scan_finished:
+							break
+						
+						# Update task state with partial results for frontend
+						progress_pct = min(100, int((wait_time / max_wait) * 100))
+						partial_result = {
+							'scan_id': scan_id,
+							'target': target,
+							'target_type': target_type,
+							'entities': entities_found if 'entities_found' in locals() else [],
+							'data_points': len(entities_found) if 'entities_found' in locals() else 0,
+							'modules_run': modules_run,
+							'status': scan_status,
+							'partial': True,
+							'progress': progress_pct
+						}
+						self.update_state(state='PROGRESS', meta=partial_result)
+						
+						# Check if timeout will be exceeded after next sleep
+						if wait_time + poll_interval >= max_wait:
+							logger.warning(f"Scan timeout will be reached ({max_wait}s). Returning partial results.")
+							# Stop the SpiderFoot scan before breaking
+							try:
+								if 'scan_id_api' in locals() and scan_id_api:
+									logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
+									stop_res = requests.get(
+										f'{spiderfoot_api_url}/stopscan',
+										params={'id': scan_id_api},
+										headers={'Accept': 'application/json'},
+										timeout=10
+									)
+									if stop_res.status_code == 200:
+										logger.info(f"Successfully requested stop for scan {scan_id_api}")
+									else:
+										logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
+							except Exception as stop_error:
+								logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+							break
+						
+						# Wait before next poll
 						time.sleep(poll_interval)
 						wait_time += poll_interval
 						
-						# Update task state
-						self.update_state(state='PROGRESS', meta={'progress': min(100, int((wait_time / max_wait) * 100))})
+						# Final timeout check after sleep
+						if wait_time >= max_wait:
+							logger.warning(f"Scan timeout reached ({max_wait}s). Returning partial results.")
+							# Stop the SpiderFoot scan before breaking
+							try:
+								if 'scan_id_api' in locals() and scan_id_api:
+									logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
+									stop_res = requests.get(
+										f'{spiderfoot_api_url}/stopscan',
+										params={'id': scan_id_api},
+										headers={'Accept': 'application/json'},
+										timeout=10
+									)
+									if stop_res.status_code == 200:
+										logger.info(f"Successfully requested stop for scan {scan_id_api}")
+									else:
+										logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
+							except Exception as stop_error:
+								logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+							break
+					
+					# Check if we timed out
+					if wait_time >= max_wait and not scan_finished:
+						entities_count = len(entities_found) if 'entities_found' in locals() else 0
+						logger.warning(f"Scan timed out after {max_wait}s. Returning partial results with {entities_count} entities.")
+						
+						# Stop the SpiderFoot scan since we're returning partial results
+						try:
+							if 'scan_id_api' in locals() and scan_id_api:
+								logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
+								stop_res = requests.get(
+									f'{spiderfoot_api_url}/stopscan',
+									params={'id': scan_id_api},
+									headers={'Accept': 'application/json'},
+									timeout=10
+								)
+								if stop_res.status_code == 200:
+									logger.info(f"Successfully requested stop for scan {scan_id_api}")
+								else:
+									logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
+						except Exception as stop_error:
+							logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+						
+						# Return partial results (even if empty)
+						entities_found = entities_found if 'entities_found' in locals() else []
+						data_points = len(entities_found)
+						modules_run = len(modules_that_ran) if 'modules_that_ran' in locals() and modules_that_ran else 0
+						
+						# Process partial results
+						try:
+							# Ensure path is set before importing
+							if _current_dir not in sys.path:
+								sys.path.insert(0, _current_dir)
+							from services.spiderfoot_processor import process_scan_results
+							raw_result = {
+								'scan_id': scan_id,
+								'target': target,
+								'target_type': target_type,
+								'entities': entities_found,
+								'data_points': data_points,
+								'modules_run': modules_run
+							}
+							processed_result = process_scan_results(raw_result)
+							result = {
+								**raw_result,
+								'processed': processed_result,
+								'partial': True,
+								'timeout': True,
+								'warning': f'Scan timed out after {max_wait}s. Showing partial results with {entities_count} entities.'
+							}
+						except Exception as process_error:
+							logger.warning(f"Failed to process partial results: {process_error}")
+							result = {
+								'scan_id': scan_id,
+								'target': target,
+								'target_type': target_type,
+								'entities': entities_found,
+								'data_points': data_points,
+								'modules_run': modules_run,
+								'partial': True,
+								'timeout': True,
+								'warning': f'Scan timed out after {max_wait}s. Showing partial results with {entities_count} entities.'
+							}
+						return result
+					
+					# Final attempt to get all results after polling completes
+					# Always retrieve final results, even if we got some during polling
+					# This ensures we get the complete dataset
+					logger.info("Retrieving final complete scan results...")
+					
+					# Check final status first
+					final_status = "UNKNOWN"
+					try:
+						status_res = requests.get(
+							f'{spiderfoot_api_url}/scanstatus',
+							params={'id': scan_id_api},
+							headers={'Accept': 'application/json'},
+							timeout=10
+						)
+						if status_res.status_code == 200:
+							status_data = status_res.json()
+							if isinstance(status_data, list) and len(status_data) > 5:
+								final_status = status_data[5]
+								logger.info(f"Final scan status: {final_status}")
+					except Exception as status_err:
+						logger.warning(f"Could not check final scan status: {status_err}")
+					
+					# Always retrieve final results, clearing any partial results from polling
+					try:
+							
+							# Get all results - this should return the complete dataset
+							results_res = requests.get(
+								f'{spiderfoot_api_url}/scanexportjsonmulti',
+								params={'ids': scan_id_api},
+								headers={'Accept': 'application/json'},
+								timeout=60  # Increased timeout for large result sets
+							)
+							
+							if results_res.status_code == 200:
+								results = results_res.json()
+								logger.info(f"Received {len(results) if isinstance(results, list) else 0} raw results from SpiderFoot")
+								
+								if isinstance(results, list):
+									# Convert SpiderFoot format to our format
+									# Clear any partial results from polling
+									entities_found = []
+									modules_that_ran = set()
+									
+									for item in results:
+										# Skip ROOT events
+										if item.get('event_type') == 'ROOT':
+											continue
+										
+										# Get event type and data
+										event_type = item.get('event_type', '')
+										event_data = item.get('data', '')
+										module = item.get('module', '')
+										
+										# Only add if we have valid data
+										if event_type and event_data:
+											entity = {
+												'type': event_type,
+												'value': event_data,
+												'module': module
+											}
+											entities_found.append(entity)
+											
+											if module:
+												modules_that_ran.add(module)
+									
+									logger.info(f"Parsed {len(entities_found)} entities from {len(results)} raw results")
+									
+									# Log entity type distribution for debugging
+									entity_type_counts = {}
+									for entity in entities_found:
+										etype = entity.get('type', 'UNKNOWN')
+										entity_type_counts[etype] = entity_type_counts.get(etype, 0) + 1
+									
+									logger.info(f"Entity type distribution: {dict(sorted(entity_type_counts.items(), key=lambda x: x[1], reverse=True)[:10])}")
+									
+									data_points = len(entities_found)
+									modules_run = len(modules_that_ran) if modules_that_ran else 0
+									
+									logger.info(f"Final scan results: {data_points} entities found from {modules_run} modules")
+									logger.info(f"All modules that produced output: {', '.join(sorted(modules_that_ran))}")
+									
+									# Log which modules were expected but didn't produce output
+									expected_modules = set(modules)
+									missing_modules = expected_modules - modules_that_ran
+									
+									# Categorize missing modules by layer
+									if missing_modules:
+										missing_layer1 = [m for m in missing_modules if m in ['sfp_crt', 'sfp_subdomain', 'sfp_dnsresolve', 'sfp_whois']]
+										missing_layer2 = [m for m in missing_modules if m in ['sfp_wappalyzer', 'sfp_httpheader']]
+										missing_layer3 = [m for m in missing_modules if m in ['sfp_s3bucket', 'sfp_azure', 'sfp_gcp']]
+										missing_layer4 = [m for m in missing_modules if m in ['sfp_spider', 'sfp_shodan', 'sfp_portscan_tcp']]
+										
+										logger.warning(f"⚠️ {len(missing_modules)} modules were enabled but produced NO output:")
+										if missing_layer1:
+											logger.warning(f"  Layer 1 (Discovery): {', '.join(missing_layer1)}")
+										if missing_layer2:
+											logger.warning(f"  Layer 2 (Technology): {', '.join(missing_layer2)}")
+											logger.warning(f"    → sfp_wappalyzer needs Wappalyzer tool installed")
+											logger.warning(f"    → sfp_httpheader needs scan type 'all' (active scanning)")
+										if missing_layer3:
+											logger.warning(f"  Layer 3 (Cloud): {', '.join(missing_layer3)}")
+											logger.warning(f"    → These modules need scan type 'all' (active scanning)")
+										if missing_layer4:
+											logger.warning(f"  Layer 4 (Content): {', '.join(missing_layer4)}")
+											logger.warning(f"    → sfp_spider needs scan type 'all' (active scanning)")
+											logger.warning(f"    → sfp_shodan needs API key configured in SpiderFoot")
+											logger.warning(f"    → sfp_portscan_tcp needs scan type 'all' (active scanning)")
+										
+										logger.warning("Troubleshooting steps:")
+										logger.warning("  1. Verify scan type is 'all' (not 'passive') - current: " + effective_scan_type)
+										logger.warning("  2. Check SpiderFoot logs: %USERPROFILE%\\.spiderfoot\\logs\\spiderfoot.debug.log")
+										logger.warning("  3. Increase scan timeout (current: " + str(timeout) + "s)")
+										logger.warning("  4. Verify API keys in SpiderFoot Settings (Shodan, etc.)")
+										logger.warning("  5. Install required tools (Wappalyzer for sfp_wappalyzer)")
+					except Exception as timeout_error:
+						logger.error(f"Failed to get final results: {timeout_error}")
+					
+					# Ensure entities_found is initialized
+					if 'entities_found' not in locals() or not entities_found:
+						entities_found = []
+						modules_run = 0
+						data_points = 0
+						logger.warning("No entities found in scan results")
+				else:
+					error_msg = f"SpiderFoot API returned status {response.status_code}: {response.text[:200]}"
+					logger.error(error_msg)
+					raise Exception(error_msg)
 					
 					# Export to CSV if requested
 					csv_file_path = None
@@ -1138,74 +1600,148 @@ def spiderfoot_scan(self, scan_id: str, target: str, scan_type: str, modules: Li
 							logger.warning(f"Failed to export CSV: {csv_error}")
 							csv_file_path = None
 					
-					result = {
-						'scan_id': scan_id,
-						'target': target,
-						'entities': entities_found,
-						'data_points': data_points,
-						'modules_run': modules_run
-					}
+					# Process results for ASM dashboard
+					try:
+						# Ensure path is set before importing
+						if _current_dir not in sys.path:
+							sys.path.insert(0, _current_dir)
+						from services.spiderfoot_processor import process_scan_results
+						raw_result = {
+							'scan_id': scan_id,
+							'target': target,
+							'target_type': target_type,
+							'entities': entities_found,
+							'data_points': data_points,
+							'modules_run': modules_run
+						}
+						processed_result = process_scan_results(raw_result)
+						result = {
+							**raw_result,
+							'processed': processed_result
+						}
+					except Exception as process_error:
+						logger.warning(f"Failed to process scan results: {process_error}")
+						result = {
+							'scan_id': scan_id,
+							'target': target,
+							'target_type': target_type,
+							'entities': entities_found,
+							'data_points': data_points,
+							'modules_run': modules_run
+						}
 					
 					if csv_file_path:
 						result['csv_file'] = csv_file_path
 						result['csv_filename'] = os.path.basename(csv_file_path)
 					
+					# Mark that SpiderFoot API succeeded
+					spiderfoot_success = True
 					return result
 			except Exception as api_error:
+				logger.error(f"❌ SpiderFoot API error: {api_error}", exc_info=True)
+				# Check if we got entities before the error - if so, return them
+				# entities_found is function-scoped, so we can always check it
+				if entities_found and len(entities_found) > 0:
+					logger.warning(f"SpiderFoot API had error but we have {len(entities_found)} entities. Returning them.")
+					try:
+						# Ensure path is set before importing
+						if _current_dir not in sys.path:
+							sys.path.insert(0, _current_dir)
+						from services.spiderfoot_processor import process_scan_results
+						raw_result = {
+							'scan_id': scan_id,
+							'target': target,
+							'target_type': target_type,
+							'entities': entities_found,
+							'data_points': len(entities_found),
+							'modules_run': modules_run
+						}
+						processed_result = process_scan_results(raw_result)
+						result = {
+							**raw_result,
+							'processed': processed_result,
+							'warning': f'Scan completed with some errors, but {len(entities_found)} entities were found.'
+						}
+						return result
+					except Exception as process_error:
+						logger.warning(f"Failed to process results: {process_error}")
+						result = {
+							'scan_id': scan_id,
+							'target': target,
+							'target_type': target_type,
+							'entities': entities_found,
+							'data_points': len(entities_found),
+							'modules_run': modules_run,
+							'warning': f'Scan completed with some errors, but {len(entities_found)} entities were found.'
+						}
+						return result
 				logger.warning(f"SpiderFoot API not available: {api_error}, using alternative methods")
 		
 		# Fallback: Use alternative agentless methods for external surface scanning
-		# This simulates SpiderFoot functionality using available tools
-		logger.info("Using alternative agentless methods for external surface scanning")
-		
-		# Use subdomain enumeration (similar to SpiderFoot's passive modules)
-		# Import passive_scan task directly to avoid circular imports
-		try:
-			# Call the passive_scan task directly
-			passive_result = passive_scan.apply(args=[target])
-			if passive_result.successful():
-				subdomains = passive_result.result.get('subdomains', [target])
-				host_to_ip = passive_result.result.get('host_to_ip', {})
-				
-				# Convert to SpiderFoot-like entities
-				# Apply scan_depth limit to control how deep we go
-				entities_found = []
-				processed_count = 0
-				max_depth_items = min(len(subdomains), scan_depth * 10)  # Limit based on depth
-				
-				for subdomain in subdomains[:max_depth_items]:
-					entities_found.append({
-						'type': 'INTERNET_NAME',
-						'value': subdomain,
-						'module': 'sfp_subdomain'
-					})
+		# ONLY use fallback if SpiderFoot API completely failed and we have NO entities
+		# NOTE: This fallback only provides Layer 1 (basic discovery) results
+		# For full Layer 2-4 results (technology, cloud, secrets), SpiderFoot API is required
+		# Check if we have entities (even if spiderfoot_success is False, we might have partial results)
+		has_entities = entities_found and len(entities_found) > 0
+		if not spiderfoot_success and not has_entities:
+			if not spiderfoot_api_url:
+				logger.warning("SpiderFoot API URL not configured - using fallback methods (Layer 1 only)")
+				logger.info("Set SPIDERFOOT_API_URL=http://localhost:5001 in your .env file to use SpiderFoot API")
+			else:
+				logger.warning("SpiderFoot API connection failed - using fallback methods (Layer 1 only)")
+				logger.info(f"Verify SpiderFoot is running at {spiderfoot_api_url}")
+				logger.info("For full ASM capabilities (Layers 2-4), ensure SpiderFoot is running and accessible")
+			
+			# Use subdomain enumeration (similar to SpiderFoot's passive modules)
+			# Import passive_scan task directly to avoid circular imports
+			try:
+				# Call the passive_scan task directly
+				passive_result = passive_scan.apply(args=[target])
+				if passive_result.successful():
+					subdomains = passive_result.result.get('subdomains', [target])
+					host_to_ip = passive_result.result.get('host_to_ip', {})
 					
-					if subdomain in host_to_ip:
+					# Convert to SpiderFoot-like entities
+					# Apply scan_depth limit to control how deep we go
+					# NOTE: Fallback only provides Layer 1 (basic discovery) - no technology, cloud, or content data
+					entities_found = []
+					processed_count = 0
+					max_depth_items = min(len(subdomains), scan_depth * 10)  # Limit based on depth
+					
+					for subdomain in subdomains[:max_depth_items]:
 						entities_found.append({
-							'type': 'IP_ADDRESS',
-							'value': host_to_ip[subdomain],
-							'module': 'sfp_dnsresolve'
+							'type': 'INTERNET_NAME',
+							'value': subdomain,
+							'module': 'sfp_subdomain'
 						})
-					processed_count += 1
+						
+						if subdomain in host_to_ip:
+							entities_found.append({
+								'type': 'IP_ADDRESS',
+								'value': host_to_ip[subdomain],
+								'module': 'sfp_dnsresolve'
+							})
+						processed_count += 1
+						
+						# Stop if we've reached the depth limit
+						if processed_count >= max_depth_items:
+							break
 					
-					# Stop if we've reached the depth limit
-					if processed_count >= max_depth_items:
-						break
-				
-				data_points = len(entities_found)
-				modules_run = len(modules) if modules else 5
-				
-				logger.info(f"Alternative scan completed: {data_points} entities found (depth: {scan_depth})")
-		except Exception as e:
-			logger.error(f"Alternative scan failed: {e}")
-			return {
-				'scan_id': scan_id,
-				'target': target,
-				'entities': [],
-				'data_points': 0,
-				'modules_run': 0,
-				'error': str(e)
-			}
+					data_points = len(entities_found)
+					modules_run = len(modules) if modules else 5
+					
+					logger.info(f"Alternative scan completed: {data_points} entities found (depth: {scan_depth})")
+					logger.warning("Fallback scan only provides Layer 1 (basic discovery). For Layers 2-4, use SpiderFoot API.")
+			except Exception as e:
+				logger.error(f"Alternative scan failed: {e}")
+				return {
+					'scan_id': scan_id,
+					'target': target,
+					'entities': [],
+					'data_points': 0,
+					'modules_run': 0,
+					'error': str(e)
+				}
 		
 		# Export to CSV if requested
 		if output_format.lower() == 'csv' and entities_found:
@@ -1241,13 +1777,41 @@ def spiderfoot_scan(self, scan_id: str, target: str, scan_type: str, modules: Li
 		else:
 			csv_file_path = None
 		
-		result = {
-			'scan_id': scan_id,
-			'target': target,
-			'entities': entities_found,
-			'data_points': data_points,
-			'modules_run': modules_run
-		}
+		# Ensure entities_found is initialized
+		if 'entities_found' not in locals() or not entities_found:
+			entities_found = []
+			data_points = 0
+			modules_run = 0
+		
+		# Process results for ASM dashboard
+		try:
+			# Ensure path is set before importing
+			if _current_dir not in sys.path:
+				sys.path.insert(0, _current_dir)
+			from services.spiderfoot_processor import process_scan_results
+			raw_result = {
+				'scan_id': scan_id,
+				'target': target,
+				'target_type': target_type,
+				'entities': entities_found,
+				'data_points': data_points,
+				'modules_run': modules_run
+			}
+			processed_result = process_scan_results(raw_result)
+			result = {
+				**raw_result,
+				'processed': processed_result
+			}
+		except Exception as process_error:
+			logger.warning(f"Failed to process scan results: {process_error}")
+			result = {
+				'scan_id': scan_id,
+				'target': target,
+				'target_type': target_type,
+				'entities': entities_found,
+				'data_points': data_points,
+				'modules_run': modules_run
+			}
 		
 		if csv_file_path:
 			result['csv_file'] = csv_file_path

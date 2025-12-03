@@ -1,0 +1,131 @@
+{
+  "scan_id": "spiderfoot-68d7d47b-3ea7-441b-bc82-baba4b2461ef",
+  "target": "zeroshield.ai",
+  "scan_timestamp": "2025-12-02T09:55:29.333692",
+  "summary": {
+    "entities_found": 11,
+    "data_points": 11,
+    "modules_run": 16
+  },
+  "entities": [
+    {
+      "type": "INTERNET_NAME",
+      "value": "autoconfig.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "IP_ADDRESS",
+      "value": "172.67.142.243",
+      "module": "sfp_dnsresolve"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "autodiscover.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "IP_ADDRESS",
+      "value": "52.98.88.248",
+      "module": "sfp_dnsresolve"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "complianceshield.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "complianceshieldbackend.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "threatshield.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "threatshieldbackend.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.zeroshield.ai",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "IP_ADDRESS",
+      "value": "104.21.27.150",
+      "module": "sfp_dnsresolve"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "zeroshield.ai",
+      "module": "sfp_subdomain"
+    }
+  ],
+  "full_result": {
+    "scan_id": "spiderfoot-68d7d47b-3ea7-441b-bc82-baba4b2461ef",
+    "target": "zeroshield.ai",
+    "target_type": "domain",
+    "entities": [
+      {
+        "type": "INTERNET_NAME",
+        "value": "autoconfig.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.67.142.243",
+        "module": "sfp_dnsresolve"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "autodiscover.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "52.98.88.248",
+        "module": "sfp_dnsresolve"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "complianceshield.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "complianceshieldbackend.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "threatshield.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "threatshieldbackend.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.zeroshield.ai",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "104.21.27.150",
+        "module": "sfp_dnsresolve"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "zeroshield.ai",
+        "module": "sfp_subdomain"
+      }
+    ],
+    "data_points": 11,
+    "modules_run": 16
+  }
+}

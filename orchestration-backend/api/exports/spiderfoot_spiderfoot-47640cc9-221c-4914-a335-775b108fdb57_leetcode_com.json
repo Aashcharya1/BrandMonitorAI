@@ -1,0 +1,1011 @@
+{
+  "scan_id": "spiderfoot-47640cc9-221c-4914-a335-775b108fdb57",
+  "target": "leetcode.com",
+  "scan_timestamp": "2025-12-02T10:19:43.242163",
+  "summary": {
+    "entities_found": 99,
+    "data_points": 99,
+    "modules_run": 16
+  },
+  "entities": [
+    {
+      "type": "INTERNET_NAME",
+      "value": "active.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "alertmanager.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "analyse.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "analysis.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "assets.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "autocomplete.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "bar.bar.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "blackbox.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "blog.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "canary-ext-test.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "canary-ext.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "canary.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "cdn-assets.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "celery-monitor.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "cn.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "collaboration-ws.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "community.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "db-slave1.mysql.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "discuss.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "docker-repo.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "docker.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "dupchecker.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "e.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "email-service.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "es-logging.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "es.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "f9yiinydtz.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ff-api.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ff-proxy.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ff.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "frontendx-canary.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "frontendx-stable.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "frontendx-staging.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "frontendx.staging.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ganglia.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "graphite-ssl.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "graphite.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "gws.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "health.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "hs.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "inf.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "internal.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "interview.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "jenkins.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "jumpserver.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "k8s-test.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "k8sdash.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "kaze.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "kibana.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "kibanatest.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "kubernetes.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lc-redis.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "logs.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-c.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-cpp.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-go.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-java.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-py2.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-py3.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "lsp-swift.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "monitor.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "monitoring.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "netdata.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "oj.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ot.ws.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "passive.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "preprod.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "preprod.staging.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "prod.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "prometheus.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "prometheus1.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "pushgateway.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "rabbitmq.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "selenium-grid.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "sharepad.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "sockets.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "sse.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "stable.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "staging-assets.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "staging.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "static-lccn.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "statsd-frontend.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "status.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "support.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "IP_ADDRESS",
+      "value": "216.198.54.6",
+      "module": "sfp_dnsresolve"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "track.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ui-test.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "uitest.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "vault.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ws-interview.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "ws.interview.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.blog.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.community.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.discuss.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "IP_ADDRESS",
+      "value": "172.66.154.160",
+      "module": "sfp_dnsresolve"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "www.oj.leetcode.com",
+      "module": "sfp_subdomain"
+    },
+    {
+      "type": "INTERNET_NAME",
+      "value": "zd-refund.leetcode.com",
+      "module": "sfp_subdomain"
+    }
+  ],
+  "full_result": {
+    "scan_id": "spiderfoot-47640cc9-221c-4914-a335-775b108fdb57",
+    "target": "leetcode.com",
+    "target_type": "domain",
+    "entities": [
+      {
+        "type": "INTERNET_NAME",
+        "value": "active.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "alertmanager.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "analyse.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "analysis.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "assets.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "autocomplete.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "bar.bar.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "blackbox.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "blog.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "canary-ext-test.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "canary-ext.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "canary.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "cdn-assets.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "celery-monitor.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "cn.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "collaboration-ws.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "community.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "db-slave1.mysql.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "discuss.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "docker-repo.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "docker.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "dupchecker.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "e.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "email-service.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "es-logging.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "es.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "f9yiinydtz.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ff-api.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ff-proxy.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ff.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "frontendx-canary.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "frontendx-stable.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "frontendx-staging.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "frontendx.staging.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ganglia.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "graphite-ssl.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "graphite.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "gws.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "health.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "hs.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "inf.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "internal.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "interview.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "jenkins.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "jumpserver.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "k8s-test.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "k8sdash.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "kaze.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "kibana.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "kibanatest.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "kubernetes.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lc-redis.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "logs.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-c.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-cpp.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-go.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-java.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-py2.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-py3.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "lsp-swift.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "monitor.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "monitoring.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "netdata.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "oj.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ot.ws.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "passive.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "preprod.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "preprod.staging.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "prod.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "prometheus.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "prometheus1.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "pushgateway.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "rabbitmq.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "selenium-grid.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "sharepad.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "sockets.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "sse.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "stable.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "staging-assets.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "staging.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "static-lccn.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "statsd-frontend.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "status.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "support.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "216.198.54.6",
+        "module": "sfp_dnsresolve"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "track.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ui-test.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "uitest.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "vault.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ws-interview.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "ws.interview.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.blog.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.community.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.discuss.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.66.154.160",
+        "module": "sfp_dnsresolve"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "www.oj.leetcode.com",
+        "module": "sfp_subdomain"
+      },
+      {
+        "type": "INTERNET_NAME",
+        "value": "zd-refund.leetcode.com",
+        "module": "sfp_subdomain"
+      }
+    ],
+    "data_points": 99,
+    "modules_run": 16
+  }
+}

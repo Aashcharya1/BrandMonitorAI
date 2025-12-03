@@ -2,7 +2,7 @@
 
 **AI-Powered Security Monitoring and Vulnerability Management Platform**
 
-BrandMonitorAI is a comprehensive security monitoring and orchestration platform built on a modern microservices architecture. It integrates multiple security scanning tools (amass, masscan, nmap, Nessus) with AI-powered analysis capabilities, featuring a ChatGPT-like interface powered by LibreChat.
+BrandMonitorAI is a comprehensive security monitoring and orchestration platform built on a modern microservices architecture. It integrates multiple security scanning tools with AI-powered analysis capabilities, featuring a ChatGPT-like interface powered by LibreChat.
 
 ---
 
@@ -12,13 +12,16 @@ BrandMonitorAI is a comprehensive security monitoring and orchestration platform
 2. [Technology Stack](#technology-stack)
 3. [Features](#features)
 4. [Prerequisites](#prerequisites)
-5. [Installation & Setup](#installation--setup)
-6. [Running the Application](#running-the-application)
+5. [Quick Start](#quick-start)
+6. [Installation & Setup](#installation--setup)
 7. [Configuration](#configuration)
-8. [User Manual](#user-manual)
-9. [Troubleshooting](#troubleshooting)
-10. [Development](#development)
-11. [Production Deployment](#production-deployment)
+8. [Running the Application](#running-the-application)
+9. [External Surface Monitoring Setup](#external-surface-monitoring-setup)
+10. [API Keys Configuration](#api-keys-configuration)
+11. [User Manual](#user-manual)
+12. [Troubleshooting](#troubleshooting)
+13. [Development](#development)
+14. [Production Deployment](#production-deployment)
 
 ---
 
@@ -31,6 +34,7 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 │                    Next.js Frontend                         │
 │                  http://localhost:9002                      │
 │  - Active/Passive Monitoring Page                         │
+│  - External Surface Monitoring (ASM)                      │
 │  - Chat Interface (LibreChat-powered)                     │
 │  - Real-time Status Updates                                │
 └────────────────────┬────────────────────────────────────────┘
@@ -63,6 +67,7 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
                                    │  - Passive Scan      │
                                    │  - Active Scan       │
                                    │  - Nessus Scan       │
+                                   │  - ASM Scan          │
                                    │  - File Processing   │
                                    └──────────┬───────────┘
                                               │
@@ -190,11 +195,10 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 - **Purpose**: Vulnerability assessment
 - **Status**: Optional - fully implemented with comprehensive error handling
 
-### Infrastructure & DevOps
-- **Docker**: Docker Compose configuration
-- **Environment Variables**: python-dotenv
-- **Logging**: Python logging module
-- **CORS**: FastAPI CORSMiddleware configured
+#### SpiderFoot (External Surface Monitoring)
+- **Purpose**: Comprehensive ASM (Attack Surface Management) across 4 layers
+- **Status**: Optional - Recommended for full ASM capabilities
+- **Port**: 5001 (default)
 
 ---
 
@@ -202,11 +206,13 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 
 ### Core Features
 - ✅ **Multi-Tool Security Scanning**: Passive (amass), Active (masscan/nmap), Vulnerability (Nessus)
-- ✅ **AI-Powered Chat Interface**: LibreChat integration for intelligent conversations
+- ✅ **External Surface Monitoring**: Comprehensive ASM with 4-layer discovery
+- ✅ **AI-Powered Chat Interface**: LibreChat integration with enhanced error handling
 - ✅ **Real-time Scan Monitoring**: Live status updates and progress tracking
 - ✅ **Comprehensive Dashboard**: Visual analytics and summary statistics
 - ✅ **Asset Search**: Fast search across discovered assets using Meilisearch
 - ✅ **Kibana Integration**: Rich visualization dashboards for scan results
+- ✅ **Robust Error Handling**: User-friendly error messages with troubleshooting guidance
 
 ### Advanced Features
 - ✅ **Async Task Processing**: Celery workers for long-running operations
@@ -214,7 +220,9 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 - ✅ **Multi-Database Support**: MongoDB, PostgreSQL, Redis, Elasticsearch, Meilisearch
 - ✅ **JWT Authentication**: Secure token-based authentication
 - ✅ **Session Management**: Redis-backed session caching
-- ✅ **Error Handling**: Comprehensive error messages and logging
+- ✅ **Enhanced Error Handling**: Comprehensive error messages with troubleshooting guidance
+- ✅ **Backend Health Monitoring**: Automatic health checks before API requests
+- ✅ **Smart Error Recovery**: Detailed error messages help users diagnose connection issues
 
 ---
 
@@ -233,6 +241,7 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 - **Amass**: For enhanced passive subdomain enumeration
 - **Masscan**: For faster port scanning
 - **Nmap**: For service detection (recommended)
+- **SpiderFoot**: For external surface monitoring (recommended)
 
 ### Recommended
 - **Elasticsearch + Kibana**: For advanced analytics
@@ -240,16 +249,105 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Quick Start
 
-### Step 1: Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
 cd BrandMonitorAI
 ```
 
-### Step 2: Install Databases
+### 2. Backend Setup
+
+```bash
+cd orchestration-backend/api
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Frontend Setup
+
+```bash
+# From project root
+npm install
+```
+
+### 4. Start Services
+
+You need **multiple terminals** running simultaneously:
+
+**Terminal 1 - Redis:**
+```bash
+# Windows (Docker - Recommended)
+docker run -d -p 6379:6379 --name redis redis:7-alpine
+
+# Linux
+sudo service redis-server start
+redis-cli ping  # Should return: PONG
+```
+
+**Terminal 2 - MongoDB:**
+```bash
+# Windows (Docker - Recommended)
+docker run -d -p 27017:27017 --name mongodb mongo:7
+
+# Linux
+sudo service mongodb start
+```
+
+**Terminal 3 - PostgreSQL:**
+```bash
+# Windows (Docker - Recommended)
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=your-password --name postgres postgres:15-alpine
+
+# Linux
+sudo service postgresql start
+```
+
+**Terminal 4 - Celery Worker:**
+```bash
+cd orchestration-backend/api
+.\venv\Scripts\activate  # Windows
+celery -A celery_app worker --loglevel=info --pool=solo  # Windows
+# celery -A celery_app worker --loglevel=info            # Linux/Mac
+```
+
+**Terminal 5 - FastAPI Backend:**
+```bash
+cd orchestration-backend/api
+.\venv\Scripts\activate  # Windows
+python main.py
+# Or: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+**Terminal 6 - Next.js Frontend:**
+```bash
+# From project root
+npm run dev
+```
+
+**Terminal 7 - SpiderFoot (Optional, for External Surface Monitoring):**
+```bash
+cd spiderfoot
+python3 sf.py -l 127.0.0.1:5001
+```
+
+**Open browser:** http://localhost:9002
+
+---
+
+## 📥 Installation & Setup
+
+### Step 1: Install Databases
 
 #### MongoDB
 
@@ -307,11 +405,11 @@ sudo service redis-server start
 redis-cli ping  # Should return: PONG
 ```
 
-### Step 3: Environment Variables Setup
+### Step 2: Environment Variables Setup
 
 #### Frontend `.env.local` (Root Directory)
 
-Create `F:\Zeroshield\BrandMonitorAI\.env.local`:
+Create `.env.local`:
 
 ```env
 # FastAPI Backend
@@ -398,12 +496,27 @@ AWS_BEDROCK_ENABLED=true
 # AI Providers (Optional)
 ANTHROPIC_API_KEY=your-anthropic-key
 GOOGLE_AI_API_KEY=your-google-ai-key
+
+# SpiderFoot Configuration (Optional - for External Surface Monitoring)
+SPIDERFOOT_API_URL=http://localhost:5001
+SPIDERFOOT_API_KEY=your-spiderfoot-api-key
+
+# Note: Module-specific API keys (Shodan, VirusTotal, etc.) are configured
+# within SpiderFoot's web interface, not here. See API Keys Configuration section below.
+
+# Email Configuration (Optional, for DMARC reports)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+IMAP_HOST=imap.gmail.com
+IMAP_PORT=993
 ```
 
-### Step 4: Backend Setup
+### Step 3: Backend Setup
 
 ```powershell
-cd orchestration-backend\api
+cd orchestration-backend/api
 
 # Create virtual environment
 python -m venv venv
@@ -422,14 +535,14 @@ python -c "from database.postgres import init_postgres_tables; init_postgres_tab
 mkdir uploads
 ```
 
-### Step 5: Frontend Setup
+### Step 4: Frontend Setup
 
 ```powershell
 # In root directory
 npm install
 ```
 
-### Step 6: Install Scanning Tools (Optional)
+### Step 5: Install Scanning Tools (Optional)
 
 #### Nmap (Recommended)
 
@@ -476,22 +589,191 @@ sudo apt-get install masscan -y
 
 **Note**: The system has fallbacks for all optional tools. Scans will work without them, but with limited functionality.
 
-### Step 7: Docker Compose Setup (Optional)
+---
 
-If using Docker Compose:
+## 🔧 External Surface Monitoring Setup
 
-```bash
-cd orchestration-backend/api
-docker compose up -d
-```
+### SpiderFoot Installation
 
-This starts:
-- FastAPI backend
-- Celery worker
-- PostgreSQL
-- Redis
-- MongoDB
-- LibreChat
+1. **Install SpiderFoot**:
+   ```bash
+   # Clone SpiderFoot (if not already in project)
+   git clone https://github.com/smicallef/spiderfoot.git
+   cd spiderfoot
+   pip install -r requirements.txt
+   
+   # Start SpiderFoot web interface
+   python3 sf.py -l 127.0.0.1:5001
+   ```
+
+2. **Access SpiderFoot Web UI**: http://localhost:5001
+
+3. **Configure SpiderFoot API Access**:
+   - In SpiderFoot web UI, go to Settings → API
+   - Generate an API key
+   - Add to your `.env` file:
+     ```env
+     SPIDERFOOT_API_URL=http://localhost:5001
+     SPIDERFOOT_API_KEY=your-spiderfoot-api-key-here
+     ```
+
+**Note**: Without SpiderFoot API configured, scans will only provide Layer 1 (basic discovery). For Layers 2-4 (technology, cloud, content), SpiderFoot API is required.
+
+---
+
+## 🔑 API Keys Configuration
+
+### Important Note
+
+**API keys for SpiderFoot modules (Shodan, VirusTotal, etc.) are configured within SpiderFoot's web interface, NOT in your `.env` file.**
+
+The `.env` file only contains the SpiderFoot API connection details (`SPIDERFOOT_API_URL` and `SPIDERFOOT_API_KEY`), which are used to connect to SpiderFoot itself.
+
+### Quick Setup: Shodan API Key
+
+#### Step 1: Get Your Shodan API Key
+
+1. Sign up at: https://account.shodan.io/ (Free tier available)
+2. Get your API key from your account dashboard
+
+#### Step 2: Configure in SpiderFoot
+
+1. **Start SpiderFoot** (if not already running):
+   ```bash
+   cd spiderfoot
+   python3 sf.py -l 127.0.0.1:5001
+   ```
+
+2. **Access SpiderFoot Web UI**: 
+   - Open browser: http://localhost:5001
+
+3. **Navigate to Settings**:
+   - Click the gear icon (⚙️) in the top right
+   - Or go to: http://localhost:5001/opts
+
+4. **Find SHODAN Module**:
+   - In the left sidebar, scroll down to find "SHODAN" (it has a lock icon 🔒)
+   - Click on "SHODAN"
+
+5. **Enter API Key**:
+   - Find the "API Key" field
+   - Enter your Shodan API key
+   - Click "Save Changes" at the top
+
+6. **Verify Configuration**:
+   - The lock icon should turn green or show as configured
+   - You can test by running a scan with `sfp_shodan` module enabled
+
+### Other API Keys (Optional)
+
+#### VirusTotal API Key
+
+1. Sign up at: https://www.virustotal.com/gui/join-us
+2. Get your API key from: https://www.virustotal.com/gui/user/[username]/apikey
+3. Configure in SpiderFoot → Settings → VirusTotal module
+
+#### SecurityTrails API Key
+
+1. Sign up at: https://securitytrails.com/
+2. Get your API key from your account dashboard
+3. Configure in SpiderFoot → Settings → SecurityTrails module
+
+#### Censys API Key
+
+1. Sign up at: https://censys.io/
+2. Get your API ID and Secret from your account
+3. Configure in SpiderFoot → Settings → Censys module
+
+### Verifying API Keys Work
+
+After configuring API keys, you can verify they work by:
+
+1. **Run a test scan** in SpiderFoot web UI:
+   - Go to: http://localhost:5001/start
+   - Enter a target domain (e.g., `example.com`)
+   - Select modules that require API keys (e.g., `sfp_shodan`)
+   - Start the scan
+   - Check the results - if the module runs successfully, the API key is working
+
+2. **Check module logs**:
+   - In SpiderFoot, go to the scan results
+   - Look for errors like "API key seems to have been rejected"
+   - If no errors, the API key is configured correctly
+
+### Troubleshooting API Keys
+
+#### "API key seems to have been rejected"
+
+- **Check the key**: Make sure you copied the entire key without extra spaces
+- **Check API limits**: Free Shodan accounts have rate limits
+- **Verify key is active**: Log into your Shodan account to verify the key is still valid
+
+#### "You enabled sfp_shodan but did not set an API key!"
+
+- The API key wasn't saved properly in SpiderFoot
+- Go back to Settings → SHODAN and re-enter the key
+- Make sure to click "Save Changes"
+
+#### Module not running in scans
+
+- Check that the module is enabled in your scan configuration
+- Verify the API key is saved in SpiderFoot settings
+- Check SpiderFoot logs for specific error messages
+
+### Security Best Practices
+
+1. **Never commit API keys to version control**
+2. **Rotate API keys periodically**
+3. **Use separate keys for development and production**
+4. **Monitor API usage** to detect unauthorized access
+5. **Store SpiderFoot's database securely** (it contains your API keys)
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+All configuration is done via environment variables. See [Step 2: Environment Variables Setup](#step-2-environment-variables-setup) for complete `.env` templates.
+
+### Key Configuration Points
+
+1. **Redis**: Required for Celery and session management
+2. **MongoDB**: Required for user data and conversations
+3. **PostgreSQL**: Required for structured scan results
+4. **Elasticsearch**: Optional, for advanced analytics
+5. **Meilisearch**: Optional, for fast asset search
+6. **Nessus**: Optional, for vulnerability scanning
+7. **LibreChat**: Integrated via Docker Compose
+8. **SpiderFoot**: Optional, for external surface monitoring
+
+### Scanning Tools Configuration
+
+The system automatically detects available scanning tools and uses fallbacks if tools are missing:
+
+- **Amass not available**: Uses DNS resolution for common subdomains
+- **Masscan not available**: Uses predefined common ports list
+- **Nmap not available**: Uses Python socket connections
+- **Nessus not configured**: Skips vulnerability scanning (other scans continue)
+- **SpiderFoot not configured**: Only Layer 1 discovery available
+
+### API Endpoints
+
+#### Backend API (FastAPI)
+
+- **Health Check**: `GET /health` - Check backend service status
+- **LibreChat Token**: `GET /api/v1/librechat/token` - Get authentication token for LibreChat
+- **AI Chat**: `POST /api/v1/ai/chat` - Direct AI chat endpoint
+- **External Surface Scan**: `POST /api/v1/external-surface/scan` - Start ASM scan
+- **Scan Status**: `GET /api/v1/external-surface/status/{job_id}` - Get scan status
+- **Swagger UI**: `GET /docs` - Interactive API documentation
+
+#### Frontend API Routes (Next.js)
+
+- **LibreChat Proxy**: `POST /api/librechat/[...libre]` - Proxy requests to LibreChat with health checks
+  - Automatically checks backend health before proxying
+  - Handles token authentication
+  - Provides detailed error messages for troubleshooting
 
 ---
 
@@ -592,44 +874,14 @@ npm run dev
 
 **Open browser:** http://localhost:9002
 
-#### Terminal 7: LibreChat (if using Docker Compose)
+#### Terminal 7: SpiderFoot (Optional, for External Surface Monitoring)
 
 ```bash
-cd orchestration-backend/api
-docker compose up -d librechat
+cd spiderfoot
+python3 sf.py -l 127.0.0.1:5001
 ```
 
-Verify LibreChat is running:
-```bash
-curl http://localhost:3080/api/models
-```
-
----
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-All configuration is done via environment variables. See [Step 3: Environment Variables Setup](#step-3-environment-variables-setup) for complete `.env` templates.
-
-### Key Configuration Points
-
-1. **Redis**: Required for Celery and session management
-2. **MongoDB**: Required for user data and conversations
-3. **PostgreSQL**: Required for structured scan results
-4. **Elasticsearch**: Optional, for advanced analytics
-5. **Meilisearch**: Optional, for fast asset search
-6. **Nessus**: Optional, for vulnerability scanning
-7. **LibreChat**: Integrated via Docker Compose
-
-### Scanning Tools Configuration
-
-The system automatically detects available scanning tools and uses fallbacks if tools are missing:
-
-- **Amass not available**: Uses DNS resolution for common subdomains
-- **Masscan not available**: Uses predefined common ports list
-- **Nmap not available**: Uses Python socket connections
-- **Nessus not configured**: Skips vulnerability scanning (other scans continue)
+**Access:** http://localhost:5001
 
 ---
 
@@ -655,11 +907,41 @@ The system automatically detects available scanning tools and uses fallbacks if 
 4. **Monitor Progress**: Watch real-time status updates
 5. **View Results**: Results appear automatically when scan completes
 
+### External Surface Monitoring
+
+1. **Navigate to External Surface Monitoring**: Click "External Surface Monitoring" in the sidebar
+2. **Configure Scan**:
+   - Enter target domain (e.g., `example.com`)
+   - Select scan type:
+     - **MVP**: Essential modules covering all 4 layers (recommended)
+     - **All**: All available modules
+     - **Passive**: Only passive discovery modules
+     - **Active**: Only active scanning modules
+     - **Enrichment**: Layers 2-4 enrichment for existing discoveries
+     - **Custom**: Select specific modules
+   - Configure scan depth (1-10, recommended: 5)
+   - Set timeout (10 seconds to 24 hours)
+   - Configure max threads (1-50, default: 10)
+3. **Start Scan**: Click "Start Scan" button
+4. **Monitor Progress**: Watch real-time status updates with partial results
+5. **View Results**: Results appear automatically with categorized data by layer:
+   - **Layer 1: Discovery**: Subdomains, IPs, certificates, ownership
+   - **Layer 2: Technology Stack**: Software, banners, versions
+   - **Layer 3: Cloud Storage**: S3, Azure, GCP buckets
+   - **Layer 4: Content & Secrets**: Emails, forms, open ports
+6. **Export Results**: Download CSV or JSON files
+
 ### Chat Interface
 
 1. **Navigate to Chat**: Click "Chat" in the sidebar
 2. **Send Messages**: Type questions and receive AI-powered responses
 3. **Context Awareness**: The system maintains conversation context using Meilisearch
+4. **Error Handling**: The chat interface provides helpful error messages if the backend is unavailable:
+   - **404 Errors**: Indicates endpoint not found - restart the backend server
+   - **401 Errors**: Authentication issues - check backend configuration
+   - **503 Errors**: Backend unavailable - verify the backend is running
+   - **Empty Responses**: Service may be unavailable - check backend logs
+5. **Auto-Scrolling**: Messages automatically scroll to show the latest conversation
 
 ### Search Assets
 
@@ -673,6 +955,7 @@ After a scan completes:
 - **Kibana Dashboard**: Embedded dashboard shows visualizations
 - **Summary Cards**: Quick stats on the monitoring page
 - **Asset Details**: Click on assets for detailed information
+- **Export Options**: Download CSV or JSON files for further analysis
 
 ---
 
@@ -758,11 +1041,21 @@ redis-cli ping  # Should return: PONG
 2. MongoDB is running (required for LibreChat)
 3. JWT secret is configured in `docker-compose.yml`
 4. OpenAI API key is set in `.env`
+5. Backend health endpoint is accessible: `http://localhost:8000/health`
+6. LibreChat token endpoint is available: `http://localhost:8000/api/v1/librechat/token`
 
 **Verify**:
 ```bash
 curl http://localhost:3080/api/models
+curl http://localhost:8000/health
+curl http://localhost:8000/api/v1/librechat/token
 ```
+
+**Enhanced Error Messages**:
+The chat interface now provides detailed error messages:
+- If you see "Backend endpoint not found (404)": Restart the backend server
+- If you see "Backend unavailable (503)": Check that the backend is running at http://localhost:8000
+- If you see "Authentication failed (401)": Verify JWT configuration in backend `.env`
 
 #### Frontend Not Connecting to Backend
 
@@ -770,6 +1063,24 @@ curl http://localhost:3080/api/models
 1. FastAPI server is running: http://localhost:8000/health
 2. CORS settings in `main.py` allow your frontend origin
 3. `NEXT_PUBLIC_API_URL` in `.env.local` is correct
+4. `NEXT_PUBLIC_MONITOR_API_URL` in `.env.local` matches backend URL
+
+**Chat Interface Errors**:
+The chat interface performs automatic health checks before making requests. If you see connection errors:
+1. Verify backend is running: `curl http://localhost:8000/health`
+2. Check backend logs for startup errors
+3. Ensure the LibreChat token endpoint exists: `/api/v1/librechat/token`
+4. Restart backend if endpoints are missing (indicates code not loaded)
+
+#### SpiderFoot Not Responding
+
+**Check**:
+1. SpiderFoot is running: http://localhost:5001
+2. API key is configured in `.env`
+3. SpiderFoot API is accessible: `curl http://localhost:5001/scanlist`
+4. Module API keys (Shodan, etc.) are configured in SpiderFoot web UI
+
+**Note**: Without SpiderFoot, external surface monitoring will only provide Layer 1 discovery.
 
 ---
 
@@ -794,6 +1105,7 @@ BrandMonitorAI/
 │   ├── app/                     # Next.js pages
 │   ├── components/              # React components
 │   └── lib/                     # Utilities
+├── spiderfoot/                  # SpiderFoot installation
 ├── .env.local                   # Frontend environment variables
 └── package.json                 # Frontend dependencies
 ```
@@ -863,11 +1175,14 @@ Use different `.env` files for dev/staging/prod:
 - Database Connections (MongoDB, PostgreSQL, Redis)
 - Celery Task Queue
 - Security Scanning Infrastructure (all 4 scan types)
+- External Surface Monitoring (ASM) with 4-layer discovery
 - Frontend Monitoring Interface
-- LibreChat Integration
-- API Endpoints
+- LibreChat Integration with Enhanced Error Handling
+- API Endpoints with Health Checks
 - Memory Management Service
 - Elasticsearch Integration
+- Chat Interface with Auto-Scrolling and Smart Error Messages
+- Backend Health Monitoring in API Routes
 
 ### ⚠️ Partially Implemented
 
@@ -886,17 +1201,12 @@ Use different `.env` files for dev/staging/prod:
 
 ---
 
-## 📝 License
-
-[Add your license here]
-
----
-
 ## 🙏 Credits
 
 - Architecture inspired by **LibreChat**
 - Built with modern best practices
 - Designed for scalability and maintainability
+- External Surface Monitoring powered by **SpiderFoot**
 
 ---
 
@@ -906,10 +1216,21 @@ For issues and questions:
 - Check the [Troubleshooting](#troubleshooting) section
 - Review logs in Celery worker and FastAPI server
 - Check Swagger UI documentation at `/docs`
+- Review SpiderFoot documentation: https://www.spiderfoot.net/documentation/
 
 ---
 
-**Last Updated**: November 2025  
-**Version**: 1.0.0  
+**Last Updated**: December 2024  
+**Version**: 1.2.0  
 **Status**: Active Development
 
+### Recent Updates (v1.2.0)
+
+- **External Surface Monitoring**: Comprehensive ASM with 4-layer discovery
+- **Enhanced Chat Interface**: Improved error handling with user-friendly messages
+- **Backend Health Checks**: Automatic health monitoring before API requests
+- **Smart Error Recovery**: Detailed error messages help diagnose connection issues
+- **Improved LibreChat Integration**: Better token handling with timeout management
+- **Auto-Scrolling Chat**: Messages automatically scroll to show the latest conversation
+- **Enhanced API Route**: Comprehensive error handling in LibreChat proxy with health check integration
+- **SpiderFoot Integration**: Full integration with configurable API keys and module support

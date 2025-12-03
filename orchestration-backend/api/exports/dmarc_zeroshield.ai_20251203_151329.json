@@ -1,0 +1,240 @@
+{
+  "domain": "zeroshield.ai",
+  "dmarc_policy": {
+    "record": "v=DMARC1; p=none",
+    "policy": "none",
+    "subdomain_policy": null,
+    "pct": 100,
+    "rua": [],
+    "ruf": [],
+    "valid": true
+  },
+  "spf": {
+    "record": "v=spf1 include:_spf.mail.hostinger.com include:spf.protection.outlook.com ~all",
+    "valid": true,
+    "dns_lookups": 4,
+    "parsed": {
+      "pass": [],
+      "neutral": [],
+      "softfail": [],
+      "fail": [],
+      "include": [
+        {
+          "domain": "_spf.mail.hostinger.com",
+          "record": "v=spf1 include:relay.mail.hostinger.com include:relay.mailchannels.net ~all",
+          "dns_lookups": 2,
+          "parsed": {
+            "pass": [],
+            "neutral": [],
+            "softfail": [],
+            "fail": [],
+            "include": [
+              {
+                "domain": "relay.mail.hostinger.com",
+                "record": "v=spf1 ip4:148.222.54.0/24 ip4:148.222.55.0/24 ip6:2a02:4780:5a:c0de::/64 ip6:2a02:4780:5b:c0de::/64 ~all",
+                "dns_lookups": 0,
+                "parsed": {
+                  "pass": [
+                    {
+                      "value": "148.222.54.0/24",
+                      "mechanism": "ip4"
+                    },
+                    {
+                      "value": "148.222.55.0/24",
+                      "mechanism": "ip4"
+                    },
+                    {
+                      "value": "2a02:4780:5a:c0de::/64",
+                      "mechanism": "ip6"
+                    },
+                    {
+                      "value": "2a02:4780:5b:c0de::/64",
+                      "mechanism": "ip6"
+                    }
+                  ],
+                  "neutral": [],
+                  "softfail": [],
+                  "fail": [],
+                  "include": [],
+                  "redirect": null,
+                  "exp": null,
+                  "all": "softfail"
+                },
+                "warnings": []
+              },
+              {
+                "domain": "relay.mailchannels.net",
+                "record": "v=spf1 ip4:23.83.208.0/20 ip4:35.85.190.185/32 ~all",
+                "dns_lookups": 0,
+                "parsed": {
+                  "pass": [
+                    {
+                      "value": "23.83.208.0/20",
+                      "mechanism": "ip4"
+                    },
+                    {
+                      "value": "35.85.190.185/32",
+                      "mechanism": "ip4"
+                    }
+                  ],
+                  "neutral": [],
+                  "softfail": [],
+                  "fail": [],
+                  "include": [],
+                  "redirect": null,
+                  "exp": null,
+                  "all": "softfail"
+                },
+                "warnings": []
+              }
+            ],
+            "redirect": null,
+            "exp": null,
+            "all": "softfail"
+          },
+          "warnings": []
+        },
+        {
+          "domain": "spf.protection.outlook.com",
+          "record": "v=spf1 ip4:40.92.0.0/15 ip4:40.107.0.0/16 ip4:52.100.0.0/15 ip4:52.102.0.0/16 ip4:52.103.0.0/17 ip4:104.47.0.0/17 ip6:2a01:111:f400::/48 ip6:2a01:111:f403::/49 ip6:2a01:111:f403:8000::/51 ip6:2a01:111:f403:c000::/51 ip6:2a01:111:f403:f000::/52 -all",
+          "dns_lookups": 0,
+          "parsed": {
+            "pass": [
+              {
+                "value": "40.92.0.0/15",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "40.107.0.0/16",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "52.100.0.0/15",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "52.102.0.0/16",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "52.103.0.0/17",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "104.47.0.0/17",
+                "mechanism": "ip4"
+              },
+              {
+                "value": "2a01:111:f400::/48",
+                "mechanism": "ip6"
+              },
+              {
+                "value": "2a01:111:f403::/49",
+                "mechanism": "ip6"
+              },
+              {
+                "value": "2a01:111:f403:8000::/51",
+                "mechanism": "ip6"
+              },
+              {
+                "value": "2a01:111:f403:c000::/51",
+                "mechanism": "ip6"
+              },
+              {
+                "value": "2a01:111:f403:f000::/52",
+                "mechanism": "ip6"
+              }
+            ],
+            "neutral": [],
+            "softfail": [],
+            "fail": [],
+            "include": [],
+            "redirect": null,
+            "exp": null,
+            "all": "fail"
+          },
+          "warnings": []
+        }
+      ],
+      "redirect": null,
+      "exp": null,
+      "all": "softfail"
+    }
+  },
+  "dkim": {
+    "records": [],
+    "valid": false,
+    "selectors_found": [],
+    "selectors_checked": [
+      "2021",
+      "key2",
+      "beta",
+      "dkim",
+      "202012",
+      "2024",
+      "202110",
+      "dkim2",
+      "202111",
+      "202112",
+      "202010",
+      "dkim1",
+      "s1",
+      "2025",
+      "202105",
+      "k1",
+      "202103",
+      "alpha",
+      "202004",
+      "gamma",
+      "2022",
+      "202009",
+      "delta",
+      "202003",
+      "default",
+      "google",
+      "202007",
+      "202102",
+      "202106",
+      "mail",
+      "zeroshield",
+      "selector",
+      "202109",
+      "key1",
+      "202107",
+      "202006",
+      "202108",
+      "202001",
+      "202008",
+      "selector1",
+      "202005",
+      "default._domainkey",
+      "202011",
+      "2020",
+      "202101",
+      "2023",
+      "202002",
+      "202104"
+    ],
+    "validation_method": "DNS TXT record lookup with public key verification",
+    "note": "DKIM validation checks for actual public key records in DNS"
+  },
+  "analysis_config": {
+    "report_type": "aggregate",
+    "date_range_days": 7,
+    "report_source_filter": null,
+    "aggregation_period": "daily",
+    "email": null
+  },
+  "reports": null,
+  "status": "completed",
+  "timestamp": "2025-12-03T15:13:29.672745",
+  "message": "DMARC analysis completed using checkdmarc with full DNS validation",
+  "version": "2.0",
+  "validation_details": {
+    "dmarc_validated": true,
+    "spf_validated": true,
+    "dkim_validated": false,
+    "dkim_selectors_checked": 48,
+    "dkim_selectors_found": 0
+  }
+}

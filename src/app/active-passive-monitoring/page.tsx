@@ -571,15 +571,15 @@ export default function ActivePassiveMonitoringPage() {
         {/* Scan type toggles */}
         <section className="space-y-4">
           <div className="flex items-start justify-between">
-            <div className="text-sm">Passive Recon<br/><span className="text-xs text-gray-400">amass</span></div>
+            <div className="text-sm">Passive Recon<br/><span className="text-xs text-gray-400"></span></div>
             <Switch id="passive" checked={enablePassive} onCheckedChange={setEnablePassive} disabled={status==='queued'||status==='running'} />
           </div>
           <div className="flex items-start justify-between">
-            <div className="text-sm">Active Scan<br/><span className="text-xs text-gray-400">masscan + nmap</span></div>
+            <div className="text-sm">Active Scan<br/><span className="text-xs text-gray-400"></span></div>
             <Switch id="active" checked={enableActive} onCheckedChange={setEnableActive} disabled={status==='queued'||status==='running'} />
           </div>
           <div className="flex items-start justify-between">
-            <div className="text-sm">Vulnerability<br/><span className="text-xs text-gray-400">Nessus</span></div>
+            <div className="text-sm">Vulnerability<br/><span className="text-xs text-gray-400"></span></div>
             <Switch id="vuln" checked={enableVuln} onCheckedChange={setEnableVuln} disabled={status==='queued'||status==='running'} />
           </div>
         </section>
