@@ -84,6 +84,10 @@ async def start_spiderfoot_scan(request: ASMScanRequest):
         if target_type not in valid_target_types:
             raise HTTPException(status_code=400, detail=f"Invalid target_type. Must be one of: {', '.join(valid_target_types)}")
         
+        # Validate scan_depth
+        if request.scan_depth < 1 or request.scan_depth > 1000:
+            raise HTTPException(status_code=400, detail="scan_depth must be between 1 and 1000")
+        
         # Determine which modules to use based on MVP recommendations
         # All modules below do NOT require API keys (except sfp_shodan which is optional)
         # These are the core modules for comprehensive ASM across all 4 layers
@@ -112,8 +116,8 @@ async def start_spiderfoot_scan(request: ASMScanRequest):
         # Phase 4: Cloud & Storage (Layer 3) - CRITICAL for security - NO API KEYS REQUIRED
         cloud_modules = [
             "sfp_s3bucket",         # AWS S3 bucket discovery - CRITICAL (NO API KEY)
-            "sfp_azure",            # Azure blob discovery - CRITICAL (NO API KEY)
-            "sfp_gcp",              # GCP bucket discovery - CRITICAL (NO API KEY)
+                        "sfp_azureblobstorage", # Azure blob discovery - CRITICAL (NO API KEY)
+                        "sfp_googleobjectstorage", # GCP bucket discovery - CRITICAL (NO API KEY)
         ]
         
         # Phase 5: Content & Secrets (Layer 4) - Active scanning required - NO API KEYS REQUIRED (except sfp_shodan)
@@ -561,7 +565,7 @@ async def enrich_scan(request: EnrichmentScanRequest):
     This endpoint takes a completed scan and runs enrichment modules on the discovered
     subdomains to get:
     - Technology stack (sfp_wappalyzer, sfp_httpheader)
-    - Cloud storage buckets (sfp_s3bucket, sfp_azure, sfp_gcp)
+    - Cloud storage buckets (sfp_s3bucket, sfp_azureblobstorage, sfp_googleobjectstorage)
     - Open ports (sfp_shodan, sfp_portscan_tcp)
     - Content scraping (sfp_spider for emails, forms, etc.)
     
@@ -606,7 +610,7 @@ async def enrich_scan(request: EnrichmentScanRequest):
         
         # Get enrichment modules (Layers 2-4) - All NON-API modules
         technology_modules = ["sfp_wappalyzer", "sfp_httpheader"]  # Layer 2 (NO API KEYS)
-        cloud_modules = ["sfp_s3bucket", "sfp_azure", "sfp_gcp"]  # Layer 3 (NO API KEYS)
+        cloud_modules = ["sfp_s3bucket", "sfp_azureblobstorage", "sfp_googleobjectstorage"]  # Layer 3 (NO API KEYS)
         content_modules = ["sfp_spider", "sfp_portscan_tcp"]  # Layer 4 (NO API KEYS - sfp_spider and sfp_portscan_tcp)
         active_modules = ["sfp_ssl", "sfp_certificate", "sfp_webanalyze"]  # Additional active (NO API KEYS)
         # Note: sfp_shodan requires API key, so it's optional but can be added if configured

@@ -1143,7 +1143,7 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 					logger.warning("Passive scan type selected - active modules (sfp_spider, sfp_s3bucket, etc.) will be skipped")
 				
 				# Log which enrichment modules are included
-				enrichment_modules_list = [m for m in modules if m in ['sfp_wappalyzer', 'sfp_httpheader', 'sfp_s3bucket', 'sfp_azure', 'sfp_gcp', 'sfp_spider', 'sfp_shodan', 'sfp_portscan_tcp']]
+				enrichment_modules_list = [m for m in modules if m in ['sfp_wappalyzer', 'sfp_httpheader', 'sfp_s3bucket', 'sfp_azureblobstorage', 'sfp_googleobjectstorage', 'sfp_spider', 'sfp_shodan', 'sfp_portscan_tcp']]
 				if enrichment_modules_list:
 					logger.info(f"Enrichment modules enabled: {', '.join(enrichment_modules_list)}")
 				else:
@@ -1207,13 +1207,42 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 					# Use the exact timeout value provided by user (in seconds)
 					max_wait = int(timeout)
 					wait_time = 0
-					poll_interval = 30  # Check every 30 seconds
+					poll_interval = 5  # Check every 5 seconds for more precise timeout control
 					last_entity_count = 0
 					no_progress_count = 0
+					scan_start_time = time.time()  # Track actual start time for precise timeout
+					
+					# Warn if timeout is too short for cloud storage modules
+					cloud_modules_enabled = any(m in modules for m in ['sfp_s3bucket', 'sfp_azureblobstorage', 'sfp_googleobjectstorage'])
+					if cloud_modules_enabled and max_wait < 300:  # Less than 5 minutes
+						logger.warning(f"⚠️ Timeout ({max_wait}s) may be too short for cloud storage modules. "
+									 f"Recommended: at least 300s (5 minutes) for cloud storage discovery. "
+									 f"Cloud modules need time to check multiple bucket permutations and create entities.")
 					
 					logger.info(f"Starting to poll SpiderFoot scan {scan_id_api} (max wait: {max_wait}s, poll interval: {poll_interval}s)")
 					
-					while wait_time < max_wait:
+					while True:
+						# Check actual elapsed time for precise timeout control
+						elapsed_time = time.time() - scan_start_time
+						if elapsed_time >= max_wait:
+							logger.warning(f"Scan timeout reached ({max_wait}s, elapsed: {elapsed_time:.1f}s). Stopping scan and returning results.")
+							# Stop the SpiderFoot scan immediately
+							try:
+								if 'scan_id_api' in locals() and scan_id_api:
+									logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
+									stop_res = requests.get(
+										f'{spiderfoot_api_url}/stopscan',
+										params={'id': scan_id_api},
+										headers={'Accept': 'application/json'},
+										timeout=10
+									)
+									if stop_res.status_code == 200:
+										logger.info(f"Successfully requested stop for scan {scan_id_api}")
+									else:
+										logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
+							except Exception as stop_error:
+								logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+							break
 						scan_finished = False
 						scan_status = "UNKNOWN"
 						
@@ -1310,12 +1339,18 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 						except requests.RequestException as req_error:
 							logger.warning(f"Error getting scan results: {req_error}")
 						
-						# If scan is finished, break
+						# If scan is finished, wait a consistent time for all entities to be saved, then break
 						if scan_finished:
+							# Wait consistently for all modules to finish processing and save entities
+							# This ensures consistent results for the same inputs
+							wait_after_completion = 5  # Fixed 5 seconds wait for all scans
+							logger.info(f"Scan finished. Waiting {wait_after_completion}s for all entities to be saved to database...")
+							time.sleep(wait_after_completion)
 							break
 						
 						# Update task state with partial results for frontend
-						progress_pct = min(100, int((wait_time / max_wait) * 100))
+						elapsed_time = time.time() - scan_start_time
+						progress_pct = min(100, int((elapsed_time / max_wait) * 100))
 						partial_result = {
 							'scan_id': scan_id,
 							'target': target,
@@ -1329,56 +1364,108 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 						}
 						self.update_state(state='PROGRESS', meta=partial_result)
 						
-						# Check if timeout will be exceeded after next sleep
-						if wait_time + poll_interval >= max_wait:
-							logger.warning(f"Scan timeout will be reached ({max_wait}s). Returning partial results.")
-							# Stop the SpiderFoot scan before breaking
-							try:
-								if 'scan_id_api' in locals() and scan_id_api:
-									logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
-									stop_res = requests.get(
-										f'{spiderfoot_api_url}/stopscan',
-										params={'id': scan_id_api},
-										headers={'Accept': 'application/json'},
-										timeout=10
-									)
-									if stop_res.status_code == 200:
-										logger.info(f"Successfully requested stop for scan {scan_id_api}")
-									else:
-										logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
-							except Exception as stop_error:
-								logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
-							break
+						# Check if we should sleep before next poll
+						elapsed_time = time.time() - scan_start_time
+						remaining_time = max_wait - elapsed_time
 						
-						# Wait before next poll
-						time.sleep(poll_interval)
-						wait_time += poll_interval
-						
-						# Final timeout check after sleep
-						if wait_time >= max_wait:
-							logger.warning(f"Scan timeout reached ({max_wait}s). Returning partial results.")
-							# Stop the SpiderFoot scan before breaking
-							try:
-								if 'scan_id_api' in locals() and scan_id_api:
-									logger.info(f"Stopping SpiderFoot scan {scan_id_api} due to timeout...")
-									stop_res = requests.get(
-										f'{spiderfoot_api_url}/stopscan',
-										params={'id': scan_id_api},
-										headers={'Accept': 'application/json'},
-										timeout=10
-									)
-									if stop_res.status_code == 200:
-										logger.info(f"Successfully requested stop for scan {scan_id_api}")
-									else:
-										logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
-							except Exception as stop_error:
-								logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+						if remaining_time <= 0:
+							# Timeout reached, break immediately (already handled at start of loop)
 							break
+						elif remaining_time < poll_interval:
+							# Sleep for remaining time only
+							time.sleep(remaining_time)
+							break
+						else:
+							# Sleep for full poll interval
+							time.sleep(poll_interval)
 					
-					# Check if we timed out
-					if wait_time >= max_wait and not scan_finished:
+					# Check if we timed out (scan was stopped due to timeout)
+					elapsed_time = time.time() - scan_start_time
+					if elapsed_time >= max_wait and not scan_finished:
 						entities_count = len(entities_found) if 'entities_found' in locals() else 0
-						logger.warning(f"Scan timed out after {max_wait}s. Returning partial results with {entities_count} entities.")
+						
+						# Short, consistent grace period to allow modules to save any pending entities
+						# This ensures consistent results for the same timeout values
+						grace_period = 10  # Fixed 10 seconds grace period for all scans
+						logger.info(f"Scan timeout reached ({max_wait}s, elapsed: {elapsed_time:.1f}s). Allowing {grace_period}s grace period for modules to save pending entities...")
+						
+						grace_start = time.time()
+						grace_poll_count = 0
+						while (time.time() - grace_start) < grace_period:
+							# Poll for results during grace period to catch entities as they're created
+							if grace_poll_count % 2 == 0:  # Poll every 5 seconds (2 * 2.5s sleep)
+								try:
+									results_res = requests.get(
+										f'{spiderfoot_api_url}/scanexportjsonmulti',
+										params={'ids': scan_id_api},  # Use 'ids' (plural) not 'id'
+										headers={'Accept': 'application/json'},
+										timeout=10
+									)
+									if results_res.status_code == 200:
+										try:
+											results_data = results_res.json()
+											if isinstance(results_data, list):
+												current_entities = []
+												current_modules_that_ran = set()
+												for item in results_data:
+													# Skip ROOT events
+													if item.get('event_type') == 'ROOT':
+														continue
+													
+													# Get event type and data (correct field names)
+													event_type = item.get('event_type', '')
+													event_data = item.get('data', '')
+													module = item.get('module', '')
+													
+													# Only add if we have valid data
+													if event_type and event_data:
+														entity = {
+															'type': event_type,
+															'value': event_data,
+															'module': module
+														}
+														current_entities.append(entity)
+														
+														if module:
+															current_modules_that_ran.add(module)
+												
+												# Update entities if we found more
+												old_count = entities_count
+												if len(current_entities) > entities_count:
+													entities_found = current_entities
+													entities_count = len(entities_found)
+													if 'modules_that_ran' not in locals():
+														modules_that_ran = set()
+													modules_that_ran.update(current_modules_that_ran)
+													logger.info(f"Grace period: Found {entities_count} entities (was {old_count})")
+										except ValueError:
+											pass
+								except Exception as grace_poll_error:
+									logger.debug(f"Error polling during grace period: {grace_poll_error}")
+							
+							# Check if scan finished during grace period
+							try:
+								status_res = requests.get(
+									f'{spiderfoot_api_url}/scanstatus',
+									params={'id': scan_id_api},
+									headers={'Accept': 'application/json'},
+									timeout=5
+								)
+								if status_res.status_code == 200:
+									status_data = status_res.json()
+									if isinstance(status_data, list) and len(status_data) > 5:
+										current_status = status_data[5]
+										if current_status in ['FINISHED', 'ABORTED', 'ABORT-REQUESTED']:
+											logger.info(f"Scan finished during grace period with status: {current_status}")
+											scan_finished = True
+											break
+							except Exception:
+								pass
+							
+							time.sleep(2)  # Check every 2 seconds
+							grace_poll_count += 1
+						
+						logger.warning(f"Scan timed out after {max_wait}s (with {grace_period}s grace period). Returning partial results with {entities_count} entities.")
 						
 						# Stop the SpiderFoot scan since we're returning partial results
 						try:
@@ -1396,6 +1483,51 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 									logger.warning(f"Failed to stop scan {scan_id_api}: HTTP {stop_res.status_code}")
 						except Exception as stop_error:
 							logger.warning(f"Error stopping SpiderFoot scan: {stop_error}")
+						
+						# Wait a short, consistent time for final results to be saved to database
+						# This ensures consistent results for the same timeout values
+						wait_time_after_grace = 5  # Fixed 5 seconds wait for all scans
+						logger.info(f"Waiting {wait_time_after_grace} seconds for final results to be saved to database...")
+						time.sleep(wait_time_after_grace)
+						
+						# Final poll to get any last-minute entities
+						try:
+							results_res = requests.get(
+								f'{spiderfoot_api_url}/scanexportjsonmulti',
+								params={'ids': scan_id_api},
+								headers={'Accept': 'application/json'},
+								timeout=30
+							)
+							if results_res.status_code == 200:
+								results_data = results_res.json()
+								if isinstance(results_data, list):
+									final_entities = []
+									final_modules_that_ran = set()
+									for item in results_data:
+										if item.get('event_type') == 'ROOT':
+											continue
+										event_type = item.get('event_type', '')
+										event_data = item.get('data', '')
+										module = item.get('module', '')
+										if event_type and event_data:
+											entity = {
+												'type': event_type,
+												'value': event_data,
+												'module': module
+											}
+											final_entities.append(entity)
+											if module:
+												final_modules_that_ran.add(module)
+									
+									if len(final_entities) > entities_count:
+										entities_found = final_entities
+										entities_count = len(entities_found)
+										if 'modules_that_ran' not in locals():
+											modules_that_ran = set()
+										modules_that_ran.update(final_modules_that_ran)
+										logger.info(f"Final poll after grace period: Found {entities_count} entities")
+						except Exception as final_poll_error:
+							logger.debug(f"Error in final poll: {final_poll_error}")
 						
 						# Return partial results (even if empty)
 						entities_found = entities_found if 'entities_found' in locals() else []
@@ -1441,8 +1573,12 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 					
 					# Final attempt to get all results after polling completes
 					# Always retrieve final results, even if we got some during polling
-					# This ensures we get the complete dataset
-					logger.info("Retrieving final complete scan results...")
+					# This ensures we get the complete dataset, including any entities created during grace period
+					logger.info("Retrieving final complete scan results (including any from grace period)...")
+					
+					# Small, consistent delay to ensure all database writes are complete
+					# This ensures consistent results for the same timeout values
+					time.sleep(3)  # Fixed 3 seconds delay for all scans
 					
 					# Check final status first
 					final_status = "UNKNOWN"
@@ -1514,6 +1650,14 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 									
 									logger.info(f"Entity type distribution: {dict(sorted(entity_type_counts.items(), key=lambda x: x[1], reverse=True)[:10])}")
 									
+									# Log module distribution for debugging consistency
+									module_counts = {}
+									for entity in entities_found:
+										module = entity.get('module', 'UNKNOWN')
+										module_counts[module] = module_counts.get(module, 0) + 1
+									logger.info(f"Module distribution (top 10): {dict(sorted(module_counts.items(), key=lambda x: x[1], reverse=True)[:10])}")
+									logger.info(f"Total entities by module: {sum(module_counts.values())} entities from {len(module_counts)} modules")
+									
 									data_points = len(entities_found)
 									modules_run = len(modules_that_ran) if modules_that_ran else 0
 									
@@ -1528,7 +1672,7 @@ def spiderfoot_scan(self, scan_id: str, target: str, target_type: str, scan_type
 									if missing_modules:
 										missing_layer1 = [m for m in missing_modules if m in ['sfp_crt', 'sfp_subdomain', 'sfp_dnsresolve', 'sfp_whois']]
 										missing_layer2 = [m for m in missing_modules if m in ['sfp_wappalyzer', 'sfp_httpheader']]
-										missing_layer3 = [m for m in missing_modules if m in ['sfp_s3bucket', 'sfp_azure', 'sfp_gcp']]
+										missing_layer3 = [m for m in missing_modules if m in ['sfp_s3bucket', 'sfp_azureblobstorage', 'sfp_googleobjectstorage']]
 										missing_layer4 = [m for m in missing_modules if m in ['sfp_spider', 'sfp_shodan', 'sfp_portscan_tcp']]
 										
 										logger.warning(f"⚠️ {len(missing_modules)} modules were enabled but produced NO output:")

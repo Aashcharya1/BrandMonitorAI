@@ -69,8 +69,8 @@ export default function ExternalSurfaceMonitoringPage() {
     "sfp_httpheader",       // Server banners - CRITICAL (nginx, gunicorn versions)
     // Phase 4: Cloud & Storage (Layer 3) - CRITICAL for security
     "sfp_s3bucket",         // AWS S3 bucket discovery - CRITICAL (finds open buckets)
-    "sfp_azure",            // Azure blob discovery - CRITICAL
-    "sfp_gcp",              // GCP bucket discovery - CRITICAL
+    "sfp_azureblobstorage", // Azure blob discovery - CRITICAL
+    "sfp_googleobjectstorage", // GCP bucket discovery - CRITICAL
     // Phase 5: Content & Secrets (Layer 4) - Active scanning required
     "sfp_spider",           // Web crawling - CRITICAL (finds emails, forms, internal links)
     "sfp_shodan",           // Open ports/banners - CRITICAL (requires API key, no noisy port scan)
@@ -191,8 +191,8 @@ export default function ExternalSurfaceMonitoringPage() {
       'sfp_wappalyzer': 'Technology Stack',
       'sfp_httpheader': 'HTTP Headers',
       'sfp_s3bucket': 'AWS S3 Buckets',
-      'sfp_azure': 'Azure Storage',
-      'sfp_gcp': 'GCP Buckets',
+      'sfp_azureblobstorage': 'Azure Storage',
+      'sfp_googleobjectstorage': 'GCP Buckets',
       'sfp_spider': 'Web Crawling',
       'sfp_shodan': 'Port Discovery',
       'sfp_hackertarget': 'HackerTarget',
@@ -1519,29 +1519,21 @@ export default function ExternalSurfaceMonitoringPage() {
           <Label htmlFor="scanDepth" className="text-xs uppercase tracking-wide text-gray-300">
             Scan Depth
           </Label>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                id="scanDepth"
-                min="1"
-                max="10"
-                value={scanDepth}
-                onChange={(e) => setScanDepth(parseInt(e.target.value))}
-                disabled={status==='queued'||status==='running'}
-                className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="w-12 text-center">
-                <span className="text-sm font-semibold text-white">{scanDepth}</span>
-              </div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>Shallow (1)</span>
-              <span className="font-semibold text-blue-400">Average (5)</span>
-              <span>Deep (10)</span>
-            </div>
-            <p className="text-xs text-gray-500">Recommended: 5 (Average) for best results</p>
-          </div>
+          <Input
+            id="scanDepth"
+            type="number"
+            min="1"
+            max="1000"
+            value={scanDepth}
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 1;
+              setScanDepth(Math.max(1, Math.min(1000, value)));
+            }}
+            disabled={status==='queued'||status==='running'}
+            className="bg-gray-800 border-gray-700 text-sm"
+            placeholder="Enter scan depth (1-1000)"
+          />
+          <p className="text-xs text-gray-500">Scan depth range: 1-1000 (higher = deeper scan)</p>
         </div>
 
         <Separator className="bg-gray-700" />

@@ -1,0 +1,89 @@
+{
+  "scan_id": "asm-scan-846cf5d6-6c2c-493d-a1a3-e631ba58767d",
+  "target": "as15169",
+  "scan_timestamp": "2025-12-04T13:48:50.155336",
+  "summary": {
+    "entities_found": 1,
+    "data_points": 1,
+    "modules_run": 20
+  },
+  "entities": [
+    {
+      "type": "INTERNET_NAME",
+      "value": "as15169",
+      "module": "sfp_subdomain"
+    }
+  ],
+  "full_result": {
+    "scan_id": "asm-scan-846cf5d6-6c2c-493d-a1a3-e631ba58767d",
+    "target": "as15169",
+    "target_type": "asn",
+    "entities": [
+      {
+        "type": "INTERNET_NAME",
+        "value": "as15169",
+        "module": "sfp_subdomain"
+      }
+    ],
+    "data_points": 1,
+    "modules_run": 20,
+    "processed": {
+      "scan_id": "asm-scan-846cf5d6-6c2c-493d-a1a3-e631ba58767d",
+      "target": "as15169",
+      "target_type": "asn",
+      "scan_timestamp": "2025-12-04T13:48:37.884907",
+      "raw_entities": [
+        {
+          "type": "INTERNET_NAME",
+          "value": "as15169",
+          "module": "sfp_subdomain"
+        }
+      ],
+      "categorized": {
+        "infrastructure": [
+          {
+            "type": "INTERNET_NAME",
+            "value": "as15169",
+            "module": "sfp_subdomain"
+          }
+        ],
+        "cloud_storage": [],
+        "web_applications": [],
+        "leaks_risks": [],
+        "other": [],
+        "summary": {
+          "total": 1,
+          "infrastructure_count": 1,
+          "cloud_storage_count": 0,
+          "web_applications_count": 0,
+          "leaks_risks_count": 0,
+          "other_count": 0,
+          "critical_findings": [],
+          "critical_count": 0
+        }
+      },
+      "assets": {
+        "as15169": {
+          "subdomain": "as15169",
+          "ips": [],
+          "ports": [],
+          "technologies": [],
+          "status_code": null,
+          "banner": null,
+          "cloud_buckets": [],
+          "emails": [],
+          "vulnerabilities": []
+        }
+      },
+      "statistics": {
+        "total_entities": 1,
+        "unique_subdomains": 1,
+        "unique_ips": 0,
+        "unique_emails": 0,
+        "open_buckets": 0,
+        "critical_findings_count": 0
+      },
+      "alerts": []
+    }
+  }
+}
