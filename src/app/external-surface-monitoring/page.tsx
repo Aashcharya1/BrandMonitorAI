@@ -211,6 +211,12 @@ export default function ExternalSurfaceMonitoringPage() {
   };
 
   const handleStartScan = async (config: ScanConfig) => {
+    // Clear polling interval if active (from previous scan)
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
     setCurrentConfig(config);
     setJobId(null);
     setStatus(null);
@@ -248,7 +254,38 @@ export default function ExternalSurfaceMonitoringPage() {
     }
   };
 
-  const handleNewScan = () => {
+  const handleNewScan = async () => {
+    // Clear polling interval if active (stop checking status of current scan)
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Abort ALL ongoing SpiderFoot scans first (this ensures all scans in SpiderFoot are stopped)
+    try {
+      const abortRes = await fetch(`${API_BASE}/api/v1/external-surface/abort`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (abortRes.ok) {
+        const abortData = await abortRes.json();
+        if (abortData.aborted_count > 0) {
+          console.log(`✅ Aborted ${abortData.aborted_count} ongoing scan(s) in SpiderFoot`);
+          // Optionally show a brief notification to user
+          setWarning(`Aborted ${abortData.aborted_count} ongoing scan(s)`);
+          // Clear warning after 3 seconds
+          setTimeout(() => setWarning(null), 3000);
+        }
+      } else {
+        console.warn("Failed to abort scans:", abortRes.status);
+      }
+    } catch (err) {
+      // Log error but don't block the reset
+      console.warn("Failed to abort ongoing scans:", err);
+    }
+    
+    // Reset all state
     setTarget("");
     setTargetType("domain");
     setScanType("mvp");

@@ -11,6 +11,7 @@ import subprocess
 import json
 import os
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,72 @@ class EnrichmentScanRequest(BaseModel):
     """Request to enrich an existing scan with Layers 2-4 data"""
     job_id: str  # Original scan job ID
     target_subdomains: Optional[List[str]] = None  # Specific subdomains to enrich (if None, uses all from original scan)
+
+def abort_ongoing_spiderfoot_scans():
+    """
+    Abort all ongoing SpiderFoot scans to ensure only one scan runs at a time.
+    Returns the number of scans aborted.
+    """
+    try:
+        spiderfoot_api_url = os.getenv("SPIDERFOOT_API_URL", "http://localhost:5001")
+        
+        # Get list of all scans
+        try:
+            scanlist_res = requests.get(
+                f'{spiderfoot_api_url}/scanlist',
+                headers={'Accept': 'application/json'},
+                timeout=10
+            )
+            
+            if scanlist_res.status_code != 200:
+                logger.warning(f"Failed to get scan list: HTTP {scanlist_res.status_code}")
+                return 0
+            
+            scans = scanlist_res.json()
+            if not isinstance(scans, list):
+                logger.warning("Invalid scan list format")
+                return 0
+            
+            # Find running scans (status at index 6)
+            running_statuses = ['RUNNING', 'STARTING', 'STARTED', 'INITIALIZING']
+            running_scans = []
+            
+            for scan in scans:
+                if isinstance(scan, list) and len(scan) > 6:
+                    scan_id = scan[0]  # ID at index 0
+                    scan_status = scan[6]  # Status at index 6
+                    if scan_status in running_statuses:
+                        running_scans.append(scan_id)
+            
+            # Abort each running scan
+            aborted_count = 0
+            for scan_id in running_scans:
+                try:
+                    stop_res = requests.get(
+                        f'{spiderfoot_api_url}/stopscan',
+                        params={'id': scan_id},
+                        headers={'Accept': 'application/json'},
+                        timeout=10
+                    )
+                    if stop_res.status_code == 200:
+                        logger.info(f"Successfully aborted ongoing scan: {scan_id}")
+                        aborted_count += 1
+                    else:
+                        logger.warning(f"Failed to abort scan {scan_id}: HTTP {stop_res.status_code}")
+                except Exception as stop_error:
+                    logger.warning(f"Error aborting scan {scan_id}: {stop_error}")
+            
+            if aborted_count > 0:
+                logger.info(f"Aborted {aborted_count} ongoing scan(s) before starting new scan")
+            
+            return aborted_count
+            
+        except requests.RequestException as e:
+            logger.warning(f"Error connecting to SpiderFoot API to abort scans: {e}")
+            return 0
+    except Exception as e:
+        logger.warning(f"Error aborting ongoing scans: {e}")
+        return 0
 
 @router.post("/external-surface/scan")
 async def start_spiderfoot_scan(request: ASMScanRequest):
@@ -202,6 +269,11 @@ async def start_spiderfoot_scan(request: ASMScanRequest):
         # Log module configuration for debugging
         logger.info(f"Scan configuration: type={request.scan_type}, target={target}, target_type={target_type}, modules_count={len(modules)}")
         logger.debug(f"Modules enabled: {', '.join(modules[:10])}{'...' if len(modules) > 10 else ''}")
+        
+        # Abort any ongoing SpiderFoot scans before starting a new one
+        aborted_count = abort_ongoing_spiderfoot_scans()
+        if aborted_count > 0:
+            logger.info(f"Aborted {aborted_count} ongoing scan(s) before starting new scan for {target}")
         
         # Create scan job
         scan_id = f"asm-scan-{uuid.uuid4()}"
@@ -405,6 +477,26 @@ async def get_spiderfoot_status(job_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get scan status: {str(e)}"
+        )
+
+@router.post("/external-surface/abort")
+async def abort_ongoing_scans():
+    """
+    Abort all ongoing SpiderFoot scans.
+    This is called when user clicks "New Scan" button to stop any running scans.
+    """
+    try:
+        aborted_count = abort_ongoing_spiderfoot_scans()
+        return {
+            "success": True,
+            "aborted_count": aborted_count,
+            "message": f"Aborted {aborted_count} ongoing scan(s)" if aborted_count > 0 else "No ongoing scans to abort"
+        }
+    except Exception as e:
+        logger.error(f"Error aborting ongoing scans: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to abort ongoing scans: {str(e)}"
         )
 
 @router.get("/external-surface/download/{filename}")
