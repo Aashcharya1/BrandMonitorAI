@@ -190,6 +190,10 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 #### Nmap (Active Scanning)
 - **Purpose**: Service version detection, port scanning
 - **Status**: Recommended - working with fallback to socket connections
+- **Features**: 
+  - Advanced false positive filtering for CDN IPs
+  - Service verification to reduce false positives
+  - Improved port state detection (open vs open|filtered)
 
 #### Nessus (Vulnerability Scanning)
 - **Purpose**: Vulnerability assessment
@@ -206,12 +210,15 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 
 ### Core Features
 - ✅ **Multi-Tool Security Scanning**: Passive (amass), Active (masscan/nmap), Vulnerability (Nessus)
+- ✅ **Advanced Port Scanning**: Intelligent false positive filtering for CDN IPs and firewall responses
+- ✅ **Service Verification**: Only reports ports with confirmed services, reducing false positives
 - ✅ **External Surface Monitoring**: Comprehensive ASM with 4-layer discovery
 - ✅ **AI-Powered Chat Interface**: LibreChat integration with enhanced error handling
 - ✅ **Real-time Scan Monitoring**: Live status updates and progress tracking
 - ✅ **Comprehensive Dashboard**: Visual analytics and summary statistics
 - ✅ **Asset Search**: Fast search across discovered assets using Meilisearch
 - ✅ **Kibana Integration**: Rich visualization dashboards for scan results
+- ✅ **CSV Export**: Detailed scan results with port status indicators
 - ✅ **Robust Error Handling**: User-friendly error messages with troubleshooting guidance
 
 ### Advanced Features
@@ -220,6 +227,8 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 - ✅ **Multi-Database Support**: MongoDB, PostgreSQL, Redis, Elasticsearch, Meilisearch
 - ✅ **JWT Authentication**: Secure token-based authentication
 - ✅ **Session Management**: Redis-backed session caching
+- ✅ **CDN IP Detection**: Automatically identifies and filters false positives from Cloudflare and other CDNs
+- ✅ **Port Status Indicators**: Visual indicators in frontend showing which ports are confirmed open
 - ✅ **Enhanced Error Handling**: Comprehensive error messages with troubleshooting guidance
 - ✅ **Backend Health Monitoring**: Automatic health checks before API requests
 - ✅ **Smart Error Recovery**: Detailed error messages help users diagnose connection issues
@@ -770,11 +779,37 @@ All configuration is done via environment variables. See [Step 2: Environment Va
 
 The system automatically detects available scanning tools and uses fallbacks if tools are missing:
 
-- **Amass not available**: Uses DNS resolution for common subdomains
-- **Masscan not available**: Uses predefined common ports list
-- **Nmap not available**: Uses Python socket connections
-- **Nessus not configured**: Skips vulnerability scanning (other scans continue)
-- **SpiderFoot not configured**: Only Layer 1 discovery available
+- **Amass**: Working - Uses amass for passive subdomain enumeration, with DNS resolution fallback
+- **Masscan**: Working - Uses masscan for fast port discovery, with predefined ports list fallback
+- **Nmap**: Working - Uses nmap for service detection with advanced false positive filtering, with Python socket connections fallback
+- **Nessus**: Optional - Fully integrated for vulnerability scanning when configured
+- **SpiderFoot**: Optional - Fully integrated for external surface monitoring when configured
+
+### Port Scanning Intelligence
+
+The system includes advanced false positive filtering:
+
+- **CDN IP Detection**: Automatically identifies Cloudflare and other CDN IP ranges
+- **Service Verification**: Only reports ports where actual services are detected
+- **State Verification**: Distinguishes between confirmed "open" and ambiguous "open|filtered" states
+- **Web Port Trust**: Always trusts web ports (80, 443, 8080, 8443) even on CDN IPs
+- **Non-Web Port Filtering**: Filters non-web ports on CDN IPs that don't have confirmed services
+- **Table Guess Filtering**: Skips ports where nmap only guessed the service from port number
+
+This significantly reduces false positives, especially for targets behind CDNs like Cloudflare.
+
+### Port Scanning Intelligence
+
+The system includes advanced false positive filtering:
+
+- **CDN IP Detection**: Automatically identifies Cloudflare and other CDN IP ranges
+- **Service Verification**: Only reports ports where actual services are detected
+- **State Verification**: Distinguishes between confirmed "open" and ambiguous "open|filtered" states
+- **Web Port Trust**: Always trusts web ports (80, 443, 8080, 8443) even on CDN IPs
+- **Non-Web Port Filtering**: Filters non-web ports on CDN IPs that don't have confirmed services
+- **Table Guess Filtering**: Skips ports where nmap only guessed the service from port number
+
+This significantly reduces false positives, especially for targets behind CDNs like Cloudflare.
 
 ### API Endpoints
 
@@ -918,13 +953,19 @@ python3 sf.py -l 127.0.0.1:5001
 2. **Configure Scan**:
    - Enter target domain (e.g., `example.com`)
    - Enable scan types:
-     - **Passive Recon**: Subdomain enumeration (amass)
+     - **Passive Recon**: Subdomain enumeration (amass + crt.sh)
      - **Active Scan**: Port and service detection (masscan + nmap)
      - **Vulnerability**: Vulnerability assessment (Nessus)
+   - Select scan intensity: Normal, Intensive, or Aggressive
+   - Optionally specify custom port range (e.g., `80,443,8080` or `1-1000`)
    - Optionally specify Nessus policy UUID
 3. **Start Scan**: Click "Start Scan" button
 4. **Monitor Progress**: Watch real-time status updates
 5. **View Results**: Results appear automatically when scan completes
+   - **Discovered Services**: Shows all open ports with service information
+   - **Port Status**: Green "Open" badges indicate confirmed open ports
+   - **False Positive Filtering**: System automatically filters false positives from CDN IPs
+6. **Export Results**: Download CSV file with detailed scan results including port status
 
 ### External Surface Monitoring
 
@@ -1240,10 +1281,21 @@ For issues and questions:
 ---
 
 **Last Updated**: December 2024  
-**Version**: 1.2.0  
+**Version**: 1.3.0  
 **Status**: Active Development
 
-### Recent Updates (v1.2.0)
+### Recent Updates (v1.3.0)
+
+- **Advanced Port Scanning**: Intelligent false positive filtering for CDN IPs (Cloudflare detection)
+- **Service Verification**: Only reports ports with confirmed services, reducing false positives significantly
+- **Improved Nmap Integration**: Enhanced service detection with `--version-intensity 5` for thorough scanning
+- **Port Status Indicators**: Visual "Open" badges in frontend for discovered services
+- **CSV Export Enhancement**: Added `port_status` column to CSV exports indicating open ports
+- **CDN IP Filtering**: Automatic detection and filtering of false positives from Cloudflare IP ranges
+- **Port State Verification**: Distinguishes between confirmed "open" and ambiguous "open|filtered" states
+- **Web Port Trust**: Always trusts web ports (80, 443, 8080, 8443) even on CDN IPs
+
+### Previous Updates (v1.2.0)
 
 - **External Surface Monitoring**: Comprehensive ASM with 4-layer discovery
 - **Enhanced Chat Interface**: Improved error handling with user-friendly messages

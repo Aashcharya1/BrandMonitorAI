@@ -1,5 +1,0 @@
-scan_id,domain,hostname,ip,port,port_status,service_name,service_version,protocol,subdomain,vulnerability_name,vulnerability_severity,vulnerability_cve,timestamp
-scan-2af8aee3-9c64-4ed7-9b8f-dd06b21ac1bd,zeroshield.ai,autoconfig.zeroshield.ai,,,,,,,autoconfig.zeroshield.ai,,,,2025-12-09T12:53:34.286106
-scan-2af8aee3-9c64-4ed7-9b8f-dd06b21ac1bd,zeroshield.ai,autodiscover.zeroshield.ai,,,,,,,autodiscover.zeroshield.ai,,,,2025-12-09T12:53:34.286106
-scan-2af8aee3-9c64-4ed7-9b8f-dd06b21ac1bd,zeroshield.ai,www.zeroshield.ai,,,,,,,www.zeroshield.ai,,,,2025-12-09T12:53:34.286106
-scan-2af8aee3-9c64-4ed7-9b8f-dd06b21ac1bd,zeroshield.ai,zeroshield.ai,,,,,,,zeroshield.ai,,,,2025-12-09T12:53:34.286106
