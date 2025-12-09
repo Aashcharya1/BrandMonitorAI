@@ -1,0 +1,79 @@
+scan_id,domain,hostname,ip,port,port_status,service_name,service_version,protocol,subdomain,vulnerability_name,vulnerability_severity,vulnerability_cve,timestamp
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,,,,,,,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,,,,,,,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,,,,,,,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,,,,,,,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,,,,,,,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshieldbackend.zeroshield.ai,,,,,,,threatshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,www.zeroshield.ai,,,,,,,www.zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,zeroshield.ai,,,,,,,zeroshield.ai,,,,2025-12-09T12:36:50.069309
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,21,open,ftp,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,22,open,ssh,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,25,open,smtp,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,53,open,domain,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,80,open,http,Cloudflare http proxy,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,110,open,pop3,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,143,open,imap,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,443,open,https,cloudflare,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,993,open,imaps,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,995,open,pop3s,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,3306,open,mysql,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,3389,open,ms-wbt-server,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,5432,open,postgresql,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,8080,open,http,Cloudflare http proxy,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,21,open,ftp,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,22,open,ssh,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,25,open,smtp,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,53,open,domain,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,80,open,http,Microsoft IIS httpd 10.0,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,110,open,pop3,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,143,open,imap,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,443,open,https,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,993,open,imaps,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,995,open,pop3s,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,3306,open,mysql,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,3389,open,ms-wbt-server,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,5432,open,postgresql,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,autodiscover.zeroshield.ai,52.98.34.200,8080,open,http-proxy,unknown,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,21,open,ftp,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,22,open,ssh,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,25,open,smtp,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,53,open,domain,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,80,open,http,AWS Elastic Load Balancing,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,110,open,pop3,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,143,open,imap,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,443,open,http,nginx 1.28.0,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,993,open,imaps,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,995,open,pop3s,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,3306,open,mysql,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,3389,open,ms-wbt-server,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,5432,open,postgresql,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,8080,open,http-proxy,unknown,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,21,open,ftp,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,22,open,ssh,OpenSSH 8.7,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,25,open,smtp,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,53,open,domain,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,80,open,http,nginx 1.28.0,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,110,open,pop3,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,143,open,imap,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,443,open,http,nginx 1.28.0,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,993,open,imaps,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,995,open,pop3s,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,3306,open,mysql,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,3389,open,ms-wbt-server,unknown,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,5432,open,postgresql,PostgreSQL DB 9.6.0 or later,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,complianceshieldbackend.zeroshield.ai,13.203.233.15,8080,open,http,Uvicorn,tcp,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,21,open,ftp,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,22,open,ssh,OpenSSH 8.7,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,25,open,smtp,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,53,open,domain,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,80,open,http,nginx 1.28.0,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,110,open,pop3,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,143,open,imap,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,443,open,http,nginx 1.28.0,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,993,open,imaps,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,995,open,pop3s,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,3306,open,mysql,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,3389,open,ms-wbt-server,unknown,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,5432,open,postgresql,PostgreSQL DB 9.6.0 or later,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827
+scan-492164fd-8313-4373-b4fb-9dc2818787b3,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,8080,open,http,Uvicorn,tcp,threatshield.zeroshield.ai,,,,2025-12-09T12:36:50.069827

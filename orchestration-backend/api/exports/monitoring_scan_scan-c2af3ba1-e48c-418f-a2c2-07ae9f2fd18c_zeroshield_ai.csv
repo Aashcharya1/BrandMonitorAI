@@ -1,0 +1,27 @@
+scan_id,domain,hostname,ip,port,port_status,service_name,service_version,protocol,subdomain,vulnerability_name,vulnerability_severity,vulnerability_cve,timestamp
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,,,,,,autoconfig.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,autodiscover.zeroshield.ai,52.98.88.248,,,,,,autodiscover.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,complianceshield.zeroshield.ai,,,,,,,complianceshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,complianceshieldbackend.zeroshield.ai,,,,,,,complianceshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,,,,,,,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,,,,,,,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,www.zeroshield.ai,104.21.27.150,,,,,,www.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,zeroshield.ai,,,,,,,zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,443,open,https,unknown,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,autoconfig.zeroshield.ai,172.67.142.243,8080,open,http,Cloudflare http proxy,tcp,autoconfig.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,autodiscover.zeroshield.ai,52.98.88.248,80,open,http,Microsoft IIS httpd 10.0,tcp,autodiscover.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,80,open,http,AWS Elastic Load Balancing,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,complianceshield.zeroshield.ai,13.235.112.121,443,open,http,nginx 1.28.0,tcp,complianceshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,22,open,ssh,OpenSSH 8.7,tcp,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,80,open,http,nginx 1.28.0,tcp,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,443,open,http,nginx 1.28.0,tcp,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,5432,open,postgresql,PostgreSQL DB 9.6.0 or later,tcp,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshield.zeroshield.ai,13.203.233.15,8080,open,http,Uvicorn,tcp,threatshield.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,13.203.233.15,22,open,ssh,OpenSSH 8.7,tcp,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,13.203.233.15,80,open,http,nginx 1.28.0,tcp,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,13.203.233.15,443,open,http,nginx 1.28.0,tcp,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,13.203.233.15,5432,open,postgresql,PostgreSQL DB 9.6.0 or later,tcp,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.060828
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,threatshieldbackend.zeroshield.ai,13.203.233.15,8080,open,http,Uvicorn,tcp,threatshieldbackend.zeroshield.ai,,,,2025-12-09T13:29:49.061833
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,www.zeroshield.ai,104.21.27.150,80,open,http,Cloudflare http proxy,tcp,www.zeroshield.ai,,,,2025-12-09T13:29:49.061833
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,www.zeroshield.ai,104.21.27.150,443,open,https,unknown,tcp,www.zeroshield.ai,,,,2025-12-09T13:29:49.061833
+scan-c2af3ba1-e48c-418f-a2c2-07ae9f2fd18c,zeroshield.ai,www.zeroshield.ai,104.21.27.150,8080,open,http,Cloudflare http proxy,tcp,www.zeroshield.ai,,,,2025-12-09T13:29:49.061833

@@ -3,6 +3,7 @@ Monitoring Router - Active & Passive Scanning
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
@@ -152,6 +153,24 @@ async def get_scan_status(job_id: str):
                     detail=f"Failed to retrieve task status: {str(backend_error)}"
                 )
         
+        # Initialize response dictionary early
+        response = {
+            "job_id": job_id,
+            "status": "unknown"
+        }
+        
+        # Map Celery states to frontend-friendly states
+        status_map = {
+            'PENDING': 'queued',
+            'STARTED': 'running',
+            'SUCCESS': 'finished',
+            'FAILURE': 'failed',
+            'REVOKED': 'canceled',
+            'RETRY': 'running'
+        }
+        status = status_map.get(state, state.lower())
+        response["status"] = status
+        
         # If state is PENDING for a long time, it likely means no worker is running
         if state == 'PENDING':
             # Check how long the task has been pending
@@ -171,22 +190,6 @@ async def get_scan_status(job_id: str):
                 pass
             except Exception as e:
                 logger.warning(f"Could not check task readiness: {e}")
-        
-        # Map Celery states to frontend-friendly states
-        status_map = {
-            'PENDING': 'queued',
-            'STARTED': 'running',
-            'SUCCESS': 'finished',
-            'FAILURE': 'failed',
-            'REVOKED': 'canceled',
-            'RETRY': 'running'
-        }
-        status = status_map.get(state, state.lower())
-        
-        response = {
-            "job_id": job_id,
-            "status": status
-        }
         
         # Add error information if task failed
         if state == 'FAILURE':
@@ -209,9 +212,15 @@ async def get_scan_status(job_id: str):
             result_url = kibana_dashboard or (f"{kibana_base}/app/kibana#/dashboard" if kibana_base else None)
             response["result_url"] = result_url
             try:
-                response["result"] = async_result.result
+                result = async_result.result
+                if result is not None:
+                    response["result"] = result
+                    logger.info(f"Successfully retrieved result for job {job_id}: {len(str(result))} bytes")
+                else:
+                    logger.warning(f"Result is None for job {job_id}")
+                    response["result"] = None
             except Exception as e:
-                logger.warning(f"Could not retrieve result: {e}")
+                logger.error(f"Could not retrieve result for job {job_id}: {e}", exc_info=True)
                 # If result retrieval fails, log but don't fail the status check
                 response["result"] = None
         
@@ -226,6 +235,113 @@ async def get_scan_status(job_id: str):
             status_code=500,
             detail=f"Failed to get scan status: {str(e)}"
         )
+
+@router.get("/monitor/export-csv/{job_id}")
+async def export_monitoring_csv(job_id: str):
+    """Generate CSV export on-demand from monitoring scan results"""
+    from celery.result import AsyncResult
+    import csv
+    from datetime import datetime
+    
+    try:
+        async_result = AsyncResult(job_id, app=celery_app)
+        
+        if async_result.state != 'SUCCESS':
+            raise HTTPException(status_code=400, detail="Scan not completed yet")
+        
+        result = async_result.result
+        if not result:
+            raise HTTPException(status_code=404, detail="No scan results found to export")
+        
+        # Generate CSV
+        api_dir = os.path.dirname(__file__)
+        api_dir = os.path.dirname(api_dir)
+        exports_dir = os.path.join(api_dir, 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        domain = result.get('domain', 'unknown')
+        scan_id = result.get('scan_id', job_id)
+        csv_filename = f"monitoring_scan_{scan_id}_{domain.replace('.', '_')}.csv"
+        csv_file_path = os.path.join(exports_dir, csv_filename)
+        
+        with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['scan_id', 'domain', 'hostname', 'ip', 'port', 'port_status', 'service_name', 'service_version', 'protocol', 'subdomain', 'vulnerability_name', 'vulnerability_severity', 'vulnerability_cve', 'timestamp']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            # Write subdomains
+            subdomains = result.get('subdomains', [])
+            host_to_ip = result.get('host_to_ip', {})
+            for subdomain in subdomains:
+                writer.writerow({
+                    'scan_id': scan_id,
+                    'domain': domain,
+                    'hostname': subdomain,
+                    'ip': host_to_ip.get(subdomain, ''),
+                    'port': '',
+                    'port_status': '',
+                    'service_name': '',
+                    'service_version': '',
+                    'protocol': '',
+                    'subdomain': subdomain,
+                    'vulnerability_name': '',
+                    'vulnerability_severity': '',
+                    'vulnerability_cve': '',
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+            
+            # Write services (all ports in services list are confirmed open)
+            services = result.get('services', [])
+            for service in services:
+                writer.writerow({
+                    'scan_id': scan_id,
+                    'domain': domain,
+                    'hostname': service.get('hostname', ''),
+                    'ip': service.get('ip', ''),
+                    'port': service.get('port', ''),
+                    'port_status': 'open',  # All ports in services list are confirmed open
+                    'service_name': service.get('name', ''),
+                    'service_version': service.get('version', ''),
+                    'protocol': service.get('protocol', 'tcp'),
+                    'subdomain': service.get('hostname', ''),
+                    'vulnerability_name': '',
+                    'vulnerability_severity': '',
+                    'vulnerability_cve': '',
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+            
+            # Write vulnerabilities
+            vulnerabilities = result.get('vulnerabilities', [])
+            for vuln in vulnerabilities:
+                writer.writerow({
+                    'scan_id': scan_id,
+                    'domain': domain,
+                    'hostname': vuln.get('host', ''),
+                    'ip': '',
+                    'port': vuln.get('port', ''),
+                    'port_status': 'open',  # Vulnerabilities are only found on open ports
+                    'service_name': '',
+                    'service_version': '',
+                    'protocol': vuln.get('protocol', ''),
+                    'subdomain': vuln.get('host', ''),
+                    'vulnerability_name': vuln.get('name', ''),
+                    'vulnerability_severity': vuln.get('severity', ''),
+                    'vulnerability_cve': vuln.get('cve', ''),
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+        
+        # Return the file
+        return FileResponse(
+            path=csv_file_path,
+            filename=csv_filename,
+            media_type='text/csv',
+            headers={"Content-Disposition": f'attachment; filename="{csv_filename}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting monitoring CSV: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to export CSV: {str(e)}")
 
 @router.get("/monitor/search")
 async def search_assets(q: str = ""):

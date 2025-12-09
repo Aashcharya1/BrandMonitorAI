@@ -45,9 +45,6 @@ services:
       - ES_API_KEY=${ES_API_KEY}
       - MEILI_URL=${MEILI_URL}
       - MEILI_KEY=${MEILI_KEY}
-      - NESSUS_URL=${NESSUS_URL}
-      - NESSUS_ACCESS_KEY=${NESSUS_ACCESS_KEY}
-      - NESSUS_SECRET_KEY=${NESSUS_SECRET_KEY}
     depends_on:
       - postgres
       - redis

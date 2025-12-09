@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
   Activity, 
-  Search, 
   CheckCircle2, 
   XCircle, 
   Loader2,
@@ -16,7 +15,8 @@ import {
   BarChart3,
   Network,
   Zap,
-  Shield
+  Shield,
+  Download
 } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
@@ -55,11 +55,12 @@ export default function ActivePassiveMonitoringPage() {
   const [warning, setWarning] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log("State update:", { jobId, status, hasScanResult: !!scanResult, scanResultKeys: scanResult ? Object.keys(scanResult) : [] });
+  }, [jobId, status, scanResult]);
 
   // Poll scan status
   useEffect(() => {
@@ -101,6 +102,8 @@ export default function ActivePassiveMonitoringPage() {
           return;
         }
         const data = await res.json();
+        console.log("Status poll response:", { status: data.status, hasResult: !!data.result, jobId });
+        
         setStatus(data.status || null);
         if (data.error) {
           setError(data.error);
@@ -113,11 +116,27 @@ export default function ActivePassiveMonitoringPage() {
           setWarning(null);
         }
         if (data.result_url) setResultUrl(data.result_url);
-        if (data.result) setScanResult(data.result);
+        if (data.result) {
+          console.log("Scan result received:", data.result);
+          setScanResult(data.result);
+          // Ensure status is set to finished if we have results
+          if (!data.status || data.status !== "finished") {
+            setStatus("finished");
+          }
+        } else if (data.status === "finished") {
+          console.warn("Scan finished but no result data received", data);
+        }
         
-        // Stop polling when scan is complete
-        if (data.status === "finished" || data.status === "failed" || data.status === "canceled") {
-          if (intervalRef.current) clearInterval(intervalRef.current);
+        // Stop polling when scan is complete AND we have results (or it failed/canceled)
+        if ((data.status === "finished" && data.result) || data.status === "failed" || data.status === "canceled") {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+            console.log("Stopped polling - scan complete with results");
+          }
+        } else if (data.status === "finished" && !data.result) {
+          // Keep polling if finished but no results yet (might be a timing issue)
+          console.log("Scan finished but no results yet, continuing to poll...");
         }
       } catch (err: any) {
         // Set error for connection issues with more detail
@@ -141,6 +160,19 @@ export default function ActivePassiveMonitoringPage() {
 
   // Auto-start scan when dialog submits
   const handleStartScan = async (config: ScanConfig) => {
+    // Clear any existing polling interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Clear previous scan results
+    setScanResult(null);
+    setWarning(null);
+    setResultUrl(null);
+    setError(null);
+    
+    // Set new configuration
     setCurrentConfig(config);
     setTarget(config.target); // Update local state for display
     setEnablePassive(config.enablePassive);
@@ -189,27 +221,6 @@ export default function ActivePassiveMonitoringPage() {
     }
   };
 
-  // Meilisearch search
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setIsSearching(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/monitor/search?q=${encodeURIComponent(query)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.results || []);
-      }
-    } catch (err) {
-      console.error("Search error:", err);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   const handleNewScan = () => {
     setTarget("");
     setEnablePassive(true);
@@ -223,8 +234,6 @@ export default function ActivePassiveMonitoringPage() {
     setResultUrl(null);
     setJobId(null);
     setScanResult(null);
-    setSearchQuery("");
-    setSearchResults([]);
   };
 
   const getStatusColor = (status: string | null) => {
@@ -254,86 +263,31 @@ export default function ActivePassiveMonitoringPage() {
     <div className="flex h-full overflow-hidden">
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto space-y-6 p-0 md:p-0 h-full">
-        {/* Main Content */}
-        {!jobId && !status && (
-          <>
-            {/* Header with Actions */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <Activity className="h-6 w-6" />
-                  Active & Passive Monitoring
-                </h1>
-                {currentConfig && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Scanning: <span className="font-mono font-medium">{currentConfig.target}</span>
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleNewScan}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  New Scan
-                </Button>
-              </div>
-            </div>
-
-            {/* Quick Search (Meilisearch) */}
-            {status === "finished" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Search className="h-5 w-5" />
-                    Quick Search Assets
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Search assets by domain, hostname, IP, or service..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        handleSearch(e.target.value);
-                      }}
-                      className="flex-1"
-                    />
-                    {isSearching && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mt-2" />}
-                  </div>
-                  {searchResults.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-sm font-medium">Found {searchResults.length} result(s)</p>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        {searchResults.map((result, idx) => (
-                          <Card key={idx} className="p-3">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <p className="font-medium">{result.hostname || result.domain}</p>
-                                {result.ip && (
-                                  <p className="text-xs text-muted-foreground font-mono">{result.ip}</p>
-                                )}
-                                {result.services && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {JSON.parse(result.services || "[]").slice(0, 3).map((svc: any, i: number) => (
-                                      <Badge key={i} variant="outline" className="text-xs">
-                                        {svc.name}:{svc.port}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+        {/* Header with Actions */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Activity className="h-6 w-6" />
+              Active & Passive Monitoring
+            </h1>
+            {currentConfig && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Scanning: <span className="font-mono font-medium">{currentConfig.target}</span>
+              </p>
             )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleNewScan}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              New Scan
+            </Button>
+          </div>
+        </div>
 
+        {/* Main Content */}
+        <>
             {/* Scan Status Card */}
-            {(jobId || status) && (
+            {(jobId || status || scanResult) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -341,11 +295,52 @@ export default function ActivePassiveMonitoringPage() {
                       {getStatusIcon(status)}
                       Scan Status
                     </div>
-                    {status && (
-                      <span className={`text-sm font-normal ${getStatusColor(status)}`}>
-                        {getProgressValue(status)}%
-                      </span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {status && (
+                        <span className={`text-sm font-normal ${getStatusColor(status)}`}>
+                          {getProgressValue(status)}%
+                        </span>
+                      )}
+                      {/* Download CSV Button */}
+                      {scanResult && status === "finished" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={async () => {
+                            if (jobId && scanResult) {
+                              try {
+                                setError(null);
+                                const res = await fetch(`${API_BASE}/api/v1/monitor/export-csv/${jobId}`, {
+                                  method: 'GET'
+                                });
+                                if (res.ok) {
+                                  const blob = await res.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  const targetName = currentConfig?.target || scanResult?.domain || 'scan';
+                                  a.download = `monitoring_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  window.URL.revokeObjectURL(url);
+                                  document.body.removeChild(a);
+                                } else {
+                                  const errorData = await res.json().catch(() => ({}));
+                                  setError(errorData.detail || "Failed to generate CSV");
+                                }
+                              } catch (err) {
+                                console.error("Failed to export CSV:", err);
+                                setError(err instanceof Error ? err.message : "Failed to generate CSV");
+                              }
+                            }
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Export CSV
+                        </Button>
+                      )}
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -357,22 +352,6 @@ export default function ActivePassiveMonitoringPage() {
                         <div className="flex-1">
                           <p className="text-sm font-medium text-red-800 dark:text-red-200">Error</p>
                           <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Warning Message */}
-                  {warning && (
-                    <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
-                      <div className="flex items-start gap-2">
-                        <Activity className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Worker Not Running</p>
-                          <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">{warning}</p>
-                          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-mono bg-yellow-100 dark:bg-yellow-900/50 p-2 rounded">
-                            celery -A celery_app worker --loglevel=info --pool=solo
-                          </p>
                         </div>
                       </div>
                     </div>
@@ -405,17 +384,20 @@ export default function ActivePassiveMonitoringPage() {
                       <div className="flex flex-wrap gap-2 pt-2">
                         {currentConfig.enablePassive && (
                           <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                            Passive (amass)
+                            <Network className="h-3 w-3 mr-1" />
+                            Passive 
                           </Badge>
                         )}
                         {currentConfig.enableActive && (
                           <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-                            Active (masscan + nmap)
+                            <Zap className="h-3 w-3 mr-1" />
+                            Active
                           </Badge>
                         )}
                         {currentConfig.enableVuln && (
                           <Badge variant="outline" className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
-                            Vulnerabilities (Nessus)
+                            <Shield className="h-3 w-3 mr-1" />
+                            Vulnerabilities 
                           </Badge>
                         )}
                       </div>
@@ -424,26 +406,213 @@ export default function ActivePassiveMonitoringPage() {
 
                   {/* Scan Results Summary */}
                   {scanResult && (
-                    <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{scanResult.assets_found || 0}</p>
-                        <p className="text-xs text-muted-foreground">Assets</p>
+                    <>
+                      {/* Warning if timeout occurred */}
+                      {scanResult.timed_out && scanResult.warning && (
+                        <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+                          <div className="flex items-start gap-2">
+                            <Activity className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Timeout Reached</p>
+                              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">{scanResult.warning}</p>
+                              {scanResult.elapsed_time && (
+                                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                                  Elapsed time: {Math.round(scanResult.elapsed_time)}s
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Summary Stats */}
+                      <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-primary">{scanResult.assets_found || scanResult.subdomains?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Assets</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-blue-600">{scanResult.services_found || scanResult.services?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Services</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-red-600">{scanResult.vulnerabilities_found || scanResult.vulnerabilities?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {scanResult.nessus_skipped ? (
+                              <span className="text-orange-500">Nessus not configured (optional)</span>
+                            ) : (
+                              "Vulnerabilities"
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-blue-600">{scanResult.services_found || 0}</p>
-                        <p className="text-xs text-muted-foreground">Services</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-red-600">{scanResult.vulnerabilities_found || 0}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {scanResult.nessus_skipped ? (
-                            <span className="text-orange-500">Nessus not configured (optional)</span>
-                          ) : (
-                            "Vulnerabilities"
-                          )}
-                        </p>
-                      </div>
-                    </div>
+
+                      {/* Subdomains List */}
+                      {scanResult.subdomains && scanResult.subdomains.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Discovered Subdomains ({scanResult.subdomains.length})</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="max-h-[200px] overflow-y-auto space-y-1">
+                              {scanResult.subdomains.slice(0, 50).map((subdomain: string, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 text-sm font-mono">
+                                  <Badge variant="outline" className="text-xs">{subdomain}</Badge>
+                                  {scanResult.host_to_ip?.[subdomain] && (
+                                    <span className="text-xs text-muted-foreground">({scanResult.host_to_ip[subdomain]})</span>
+                                  )}
+                                </div>
+                              ))}
+                              {scanResult.subdomains.length > 50 && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  ... and {scanResult.subdomains.length - 50} more
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Services List */}
+                      {scanResult.services && scanResult.services.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Discovered Services ({scanResult.services.length})</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="max-h-[300px] overflow-y-auto space-y-2">
+                              {scanResult.services.slice(0, 100).map((service: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 p-2 border rounded text-sm">
+                                  <Badge variant="outline" className="font-mono">{service.hostname || 'unknown'}</Badge>
+                                  {service.ip && (
+                                    <span className="text-xs text-muted-foreground font-mono">{service.ip}</span>
+                                  )}
+                                  <Badge variant="secondary">{service.name || 'unknown'}</Badge>
+                                  <span className="text-xs font-mono">:{service.port}</span>
+                                  {/* Port Status Indicator - All services in this list are confirmed open */}
+                                  <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Open
+                                  </Badge>
+                                  {service.version && service.version !== 'unknown' && (
+                                    <span className="text-xs text-muted-foreground">({service.version})</span>
+                                  )}
+                                </div>
+                              ))}
+                              {scanResult.services.length > 100 && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  ... and {scanResult.services.length - 100} more
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Vulnerabilities List */}
+                      {scanResult.vulnerabilities && scanResult.vulnerabilities.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Vulnerabilities ({scanResult.vulnerabilities.length})</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="max-h-[300px] overflow-y-auto space-y-2">
+                              {scanResult.vulnerabilities.slice(0, 50).map((vuln: any, idx: number) => {
+                                // Handle both severity_name (from Nessus) and severity (number or string)
+                                const severityName = vuln.severity_name || 
+                                  (vuln.severity === 'Critical' || vuln.severity === '4' ? 'Critical' :
+                                   vuln.severity === 'High' || vuln.severity === '3' ? 'High' :
+                                   vuln.severity === 'Medium' || vuln.severity === '2' ? 'Medium' :
+                                   vuln.severity === 'Low' || vuln.severity === '1' ? 'Low' : 'Unknown');
+                                const isCritical = severityName === 'Critical' || severityName === 'High';
+                                
+                                return (
+                                  <div key={idx} className="p-2 border rounded text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant={isCritical ? 'destructive' : 'secondary'}>
+                                        {severityName}
+                                      </Badge>
+                                      <span className="font-medium">{vuln.name || 'Unknown vulnerability'}</span>
+                                      {vuln.cvss_score && vuln.cvss_score > 0 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          CVSS: {vuln.cvss_score.toFixed(1)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {vuln.host && (
+                                      <p className="text-xs text-muted-foreground mt-1">Host: {vuln.host}</p>
+                                    )}
+                                    {vuln.cve && (
+                                      <p className="text-xs text-muted-foreground">CVE: {vuln.cve}</p>
+                                    )}
+                                    {vuln.plugin_id && (
+                                      <p className="text-xs text-muted-foreground">Plugin ID: {vuln.plugin_id}</p>
+                                    )}
+                                    {vuln.description && (
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{vuln.description}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {scanResult.vulnerabilities.length > 50 && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  ... and {scanResult.vulnerabilities.length - 50} more
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Nessus Status Messages */}
+                      {scanResult.nessus_skipped && (
+                        <div className="p-4 border border-orange-200 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                          <div className="flex items-start gap-2">
+                            <Shield className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-orange-800 dark:text-orange-200">Nessus Scan Skipped</p>
+                              <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                                {scanResult.nessus_skipped_reason || 'Nessus not configured (optional)'}
+                              </p>
+                              <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                                To enable Nessus scanning, configure NESSUS_URL, NESSUS_ACCESS_KEY, and NESSUS_SECRET_KEY in your .env file.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {scanResult.nessus_error && (
+                        <div className="p-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-950/20">
+                          <div className="flex items-start gap-2">
+                            <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-red-800 dark:text-red-200">Nessus Scan Error</p>
+                              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                                {scanResult.nessus_error}
+                              </p>
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                                Check Nessus server status and API credentials. Any vulnerabilities found before the error are still displayed above.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {scanResult.vulnerabilities && scanResult.vulnerabilities.length === 0 && !scanResult.nessus_skipped && !scanResult.nessus_error && currentConfig?.enableVuln && (
+                        <div className="p-4 border border-green-200 rounded-lg bg-green-50 dark:bg-green-950/20">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-green-800 dark:text-green-200">No Vulnerabilities Found</p>
+                              <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                                Nessus scan completed successfully. No vulnerabilities detected (this may indicate a secure target).
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* Job ID */}
@@ -451,6 +620,15 @@ export default function ActivePassiveMonitoringPage() {
                     <p className="text-xs text-muted-foreground font-mono">
                       Job ID: {jobId}
                     </p>
+                  )}
+
+                  {/* Show message if scan finished but no results yet */}
+                  {status === "finished" && !scanResult && (
+                    <div className="p-4 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        Scan completed. Retrieving results...
+                      </p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -532,8 +710,7 @@ export default function ActivePassiveMonitoringPage() {
                 </div>
               </>
             )}
-          </>
-        )}
+        </>
       </div>
 
       {/* Right options sidebar */}

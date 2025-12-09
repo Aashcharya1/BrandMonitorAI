@@ -251,6 +251,24 @@ BrandMonitorAI follows a **LibreChat-based microservices architecture**:
 
 ## 🚀 Quick Start
 
+```bash
+netstat -ano | findstr :6379
+netstat -ano | findstr :27017
+netstat -ano | findstr :8834
+cd spiderfoot
+python3 sf.py -l 127.0.0.1:5001
+
+cd orchestration-backend/api
+venv\Scripts\activate  
+python main.py
+
+cd orchestration-backend/api
+venv\Scripts\activate 
+celery -A celery_app worker --loglevel=info --pool=solo
+
+npm run dev
+```
+
 ### 1. Clone the Repository
 
 ```bash
@@ -476,6 +494,7 @@ MEILI_INDEX=conversation_memory
 NESSUS_URL=https://localhost:8834
 NESSUS_ACCESS_KEY=your-access-key
 NESSUS_SECRET_KEY=your-secret-key
+# Nessus Activation Code (for initial setup): HDEU-X6XA-JSA2-DPCL-Y27V
 
 # JWT Authentication
 JWT_SECRET=your-jwt-secret-change-this-to-random-value
