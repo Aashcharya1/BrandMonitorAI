@@ -9,7 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Network, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Network, Loader2, CheckCircle2, XCircle, RefreshCw, Download, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const API_BASE = process.env.NEXT_PUBLIC_MONITOR_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -300,6 +306,32 @@ export default function DnsMonitoringPage() {
               </p>
             )}
           </div>
+          <div className="flex gap-2">
+            {/* New Scan button only shows when monitoring is active and results are shown */}
+            {isMonitoring && monitoringStatus && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setDomain("");
+                  setRecordTypes(["A", "AAAA", "MX", "TXT", "NS"]);
+                  setMonitoringInterval("hourly");
+                  setNameservers("");
+                  setAlertThreshold(5);
+                  setCheckTimeout(30);
+                  setEnableChangeDetection(true);
+                  setIsLoading(false);
+                  setError(null);
+                  setIsMonitoring(false);
+                  setMonitoringStatus(null);
+                  setSessionId(null);
+                }}
+                disabled={isLoading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                New Scan
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Empty state when not monitoring */}
@@ -316,6 +348,70 @@ export default function DnsMonitoringPage() {
         {/* Active monitoring content */}
         {isMonitoring && monitoringStatus && (
           <div className="px-6 space-y-6">
+            {/* Export Dropdown - Top Right of Results */}
+            <div className="flex justify-end mb-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Export as
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Export as JSON
+                      const jsonStr = JSON.stringify(monitoringStatus, null, 2);
+                      const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+                      const url = window.URL.createObjectURL(jsonBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `dns_monitoring_${domain}_${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(link);
+                      link.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(link);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export as JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Export as CSV
+                      const csvRows: string[] = [];
+                      // Header
+                      csvRows.push('Record Type,Value,TTL');
+                      // Data rows
+                      if (monitoringStatus.current_records) {
+                        Object.entries(monitoringStatus.current_records).forEach(([type, records]: [string, any]) => {
+                          if (Array.isArray(records)) {
+                            records.forEach((r: any) => {
+                              csvRows.push(`${type},"${r.value}",${r.ttl || 'N/A'}`);
+                            });
+                          }
+                        });
+                      }
+                      const csvContent = csvRows.join('\n');
+                      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+                      const url = window.URL.createObjectURL(csvBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `dns_monitoring_${domain}_${new Date().toISOString().split('T')[0]}.csv`;
+                      document.body.appendChild(link);
+                      link.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(link);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             {/* Status Card */}
             <Card>
               <CardHeader>

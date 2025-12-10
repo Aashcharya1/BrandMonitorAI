@@ -34,18 +34,32 @@ WEB_APPLICATION_TYPES = [
     'WEBSERVER_HTTPHEADERS',
     'TARGET_WEB_CONTENT',
     'TARGET_WEB_CONTENT_TYPE',
+    'LINKED_URL_INTERNAL',  # Moved from LEAKS_RISKS - these are normal web crawling results
+    'LINKED_URL_EXTERNAL',  # Moved from LEAKS_RISKS - these are normal web crawling results
 ]
 
 LEAKS_RISKS_TYPES = [
+    # Only actual security risks and sensitive data leaks
     'EMAIL_ADDRESS',
+    'AFFILIATE_EMAILADDR',
     'POTENTIAL_VULNERABILITY',
+    'VULNERABILITY_GENERAL',
+    'VULNERABILITY_CVE_CRITICAL',
+    'VULNERABILITY_CVE_HIGH',
+    'VULNERABILITY_CVE_MEDIUM',
+    'VULNERABILITY_CVE_LOW',
     'BLACKLISTED_INTERNET_NAME',
+    'BLACKLISTED_COHOST',
     'LEAKED_CREDENTIALS',
+    'PASSWORD_LEAK',
     'EXPOSED_API_KEY',
     'EXPOSED_SECRET',
-    'LINKED_URL_INTERNAL',
-    'LINKED_URL_EXTERNAL',
-    'FORM_NAME',
+    'ACCOUNT_EXTERNAL_OWNED',
+    'ACCOUNT_EXTERNAL_OWNED_COMPROMISED',
+    'ACCOUNT_EXTERNAL_USER_SHARED_COMPROMISED',
+    'DARKNET_MENTION',
+    'LEAK_SITE_MENTION',
+    'INTERESTING_FILE',  # Files that could pose security risks (backups, config files, etc.)
 ]
 
 def categorize_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:

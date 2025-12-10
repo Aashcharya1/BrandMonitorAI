@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, Loader2, Network, Download, CheckCircle2, XCircle, AlertCircle, Shield } from "lucide-react";
+import { MailCheck, Loader2, Network, Download, CheckCircle2, XCircle, AlertCircle, Shield, RefreshCw, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
 
 const API_BASE = process.env.NEXT_PUBLIC_MONITOR_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -129,6 +136,19 @@ export default function DmarcMonitoringPage() {
     }
   };
 
+  const handleNewScan = () => {
+    // Reset all state for a new scan
+    setDomain("");
+    setEmail("");
+    setReportType("aggregate");
+    setDateRange("7");
+    setReportSource("");
+    setAggregationPeriod("daily");
+    setIsLoading(false);
+    setError(null);
+    setAnalysisResult(null);
+  };
+
   return (
     <Fragment>
       <div className="flex h-full overflow-hidden">
@@ -145,11 +165,71 @@ export default function DmarcMonitoringPage() {
                 Analysis for: <span className="font-mono font-medium">{analysisResult.domain}</span>
               </p>
             )}
+            {isLoading && !analysisResult && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Analyzing: <span className="font-mono font-medium">{domain}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {/* New Scan button only shows when analysis is finished and results are shown */}
+            {analysisResult && !isLoading && (
+              <Button variant="outline" onClick={handleNewScan}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                New Scan
+              </Button>
+            )}
           </div>
         </div>
 
+        {/* Loading/Status Card */}
+        {isLoading && (
+          <div className="px-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                  Analysis Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium">Analyzing DMARC Policy...</span>
+                    <span className="text-blue-600">In Progress</span>
+                  </div>
+                  <Progress value={50} className="h-2" />
+                </div>
+                {domain && (
+                  <div className="p-4 border rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">Analysis Configuration</p>
+                      <Badge variant="secondary" className="text-xs">
+                        {domain}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-xs">
+                        {reportType}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {dateRange} days
+                      </Badge>
+                      {aggregationPeriod && (
+                        <Badge variant="outline" className="text-xs">
+                          {aggregationPeriod}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Empty state when no analysis */}
-        {!analysisResult && (
+        {!analysisResult && !isLoading && (
           <div className="px-6 py-12 text-center">
             <MailCheck className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-2xl font-semibold mb-2">No Analysis Results</h2>
@@ -169,27 +249,63 @@ export default function DmarcMonitoringPage() {
                   <CardTitle>DMARC Analysis Results</CardTitle>
                   <CardDescription>Analysis for {analysisResult.domain}</CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Export results as JSON
-                    const dataStr = JSON.stringify(analysisResult, null, 2);
-                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                    const url = window.URL.createObjectURL(dataBlob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `dmarc_analysis_${analysisResult.domain}_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(link);
-                    link.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(link);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export JSON
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Export as
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // Export results as JSON
+                        const dataStr = JSON.stringify(analysisResult, null, 2);
+                        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                        const url = window.URL.createObjectURL(dataBlob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `dmarc_${analysisResult.domain}_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(link);
+                        link.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // Export results as CSV
+                        const csvRows: string[] = [];
+                        // Header
+                        csvRows.push('Domain,DMARC Policy,SPF Valid,DKIM Valid,DMARC Record');
+                        // Data row
+                        const policy = analysisResult.dmarc_policy?.policy || 'none';
+                        const spfValid = analysisResult.spf?.valid ? 'Yes' : 'No';
+                        const dkimValid = analysisResult.dkim?.valid ? 'Yes' : 'No';
+                        const dmarcRecord = (analysisResult.dmarc_policy?.record || '').replace(/,/g, ';');
+                        csvRows.push(`${analysisResult.domain},${policy},${spfValid},${dkimValid},"${dmarcRecord}"`);
+                        
+                        const csvContent = csvRows.join('\n');
+                        const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(dataBlob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `dmarc_${analysisResult.domain}_${new Date().toISOString().split('T')[0]}.csv`;
+                        document.body.appendChild(link);
+                        link.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

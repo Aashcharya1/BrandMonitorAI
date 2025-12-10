@@ -17,8 +17,15 @@ import {
   Network,
   Zap,
   Shield,
-  Download
+  Download,
+  ChevronDown
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -73,6 +80,9 @@ export default function ExternalSurfaceMonitoringPage() {
     "sfp_googleobjectstorage", // GCP bucket discovery - CRITICAL
     // Phase 5: Content & Secrets (Layer 4) - Active scanning required
     "sfp_spider",           // Web crawling - CRITICAL (finds emails, forms, internal links)
+    "sfp_intfiles",         // Interesting files - Finds exposed config files, backups
+    "sfp_tool_snallygaster", // Snallygaster - Finds file leaks and security problems (requires tool)
+    "sfp_tool_nuclei",      // Nuclei - Fast vulnerability scanner (requires tool)
     "sfp_shodan",           // Open ports/banners - CRITICAL (requires API key, no noisy port scan)
     // Additional modules
     "sfp_hackertarget",     // HackerTarget API
@@ -351,12 +361,26 @@ export default function ExternalSurfaceMonitoringPage() {
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleNewScan}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              New Scan
-            </Button>
+            {/* New Scan button only shows when scan is finished and results are shown */}
+            {scanResult && status === "finished" && (
+              <Button variant="outline" onClick={handleNewScan}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                New Scan
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Empty state when no scan */}
+        {!jobId && !status && !scanResult && (
+          <div className="px-6 py-12 text-center">
+            <Globe className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">No Active Scan</h2>
+            <p className="text-muted-foreground mb-6">
+              Start a scan from the right panel to discover external surface assets and vulnerabilities
+            </p>
+          </div>
+        )}
 
         {/* Scan Status Card */}
         {(jobId || status) && (
@@ -455,47 +479,150 @@ export default function ExternalSurfaceMonitoringPage() {
                         </Card>
                       )}
 
-                      {/* Categorized Summary */}
-                      {scanResult.result.processed?.categorized && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <Card>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium">Infrastructure</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-2xl font-bold">{scanResult.result.processed.categorized.summary?.infrastructure_count || 0}</p>
-                              <p className="text-xs text-muted-foreground">IPs, Domains, Ports</p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium">Cloud Storage</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-2xl font-bold">{scanResult.result.processed.categorized.summary?.cloud_storage_count || 0}</p>
-                              <p className="text-xs text-muted-foreground">S3, Azure, GCP</p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium">Web Apps</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-2xl font-bold">{scanResult.result.processed.categorized.summary?.web_applications_count || 0}</p>
-                              <p className="text-xs text-muted-foreground">Tech Stack, Banners</p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium">Leaks & Risks</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-2xl font-bold">{scanResult.result.processed.categorized.summary?.leaks_risks_count || 0}</p>
-                              <p className="text-xs text-muted-foreground">Emails, Secrets</p>
-                            </CardContent>
-                          </Card>
+                      {/* Export Dropdown - Top Right of Results */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (
+                        <div className="flex justify-end mb-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <Download className="h-4 w-4" />
+                                Export as
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  if (jobId && scanResult.result) {
+                                    try {
+                                      setError(null);
+                                      const res = await fetch(`${API_BASE}/api/v1/external-surface/export-json/${jobId}`, {
+                                        method: 'GET'
+                                      });
+                                      if (res.ok) {
+                                        const blob = await res.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        const targetName = currentConfig?.target || scanResult?.target || 'scan';
+                                        a.download = `asm_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.json`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                      } else {
+                                        const errorData = await res.json().catch(() => ({}));
+                                        setError(errorData.detail || "Failed to generate JSON");
+                                      }
+                                    } catch (err) {
+                                      console.error("Failed to export JSON:", err);
+                                      setError(err instanceof Error ? err.message : "Failed to generate JSON");
+                                    }
+                                  }
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export as JSON
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  if (jobId && scanResult.result.entities) {
+                                    try {
+                                      setError(null);
+                                      const res = await fetch(`${API_BASE}/api/v1/external-surface/export-csv/${jobId}`, {
+                                        method: 'GET'
+                                      });
+                                      if (res.ok) {
+                                        const blob = await res.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        const targetName = currentConfig?.target || scanResult?.target || 'scan';
+                                        a.download = `asm_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                      } else {
+                                        const errorData = await res.json().catch(() => ({}));
+                                        setError(errorData.detail || "Failed to generate CSV");
+                                      }
+                                    } catch (err) {
+                                      console.error("Failed to export CSV:", err);
+                                      setError(err instanceof Error ? err.message : "Failed to generate CSV");
+                                    }
+                                  }
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export as CSV
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
+
+                      {/* Categorized Summary */}
+                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (() => {
+                        // Calculate counts directly from entities using the same logic as debug view
+                        // This ensures consistency and avoids stale backend-processed data
+                        const layer1Types = ['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 'TCP_PORT_OPEN', 'UDP_PORT_OPEN'];
+                        const layer2Types = ['SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'];
+                        const layer3Types = ['CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY'];
+                        const layer4Types = ['EMAIL_ADDRESS', 'AFFILIATE_EMAILADDR', 'POTENTIAL_VULNERABILITY', 'VULNERABILITY_GENERAL', 'VULNERABILITY_CVE_CRITICAL', 'VULNERABILITY_CVE_HIGH', 'VULNERABILITY_CVE_MEDIUM', 'VULNERABILITY_CVE_LOW', 'BLACKLISTED_INTERNET_NAME', 'BLACKLISTED_COHOST', 'LEAKED_CREDENTIALS', 'PASSWORD_LEAK', 'EXPOSED_API_KEY', 'EXPOSED_SECRET', 'ACCOUNT_EXTERNAL_OWNED', 'ACCOUNT_EXTERNAL_OWNED_COMPROMISED', 'ACCOUNT_EXTERNAL_USER_SHARED_COMPROMISED', 'DARKNET_MENTION', 'LEAK_SITE_MENTION', 'INTERESTING_FILE'];
+                        
+                        const entityTypeCounts: Record<string, number> = {};
+                        scanResult.result.entities.forEach((entity: any) => {
+                          const type = (entity.type || 'UNKNOWN').toUpperCase();
+                          entityTypeCounts[type] = (entityTypeCounts[type] || 0) + 1;
+                        });
+                        
+                        const infrastructureCount = Object.keys(entityTypeCounts).filter(t => layer1Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
+                        const webAppsCount = Object.keys(entityTypeCounts).filter(t => layer2Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
+                        const cloudStorageCount = Object.keys(entityTypeCounts).filter(t => layer3Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
+                        const leaksRisksCount = Object.keys(entityTypeCounts).filter(t => layer4Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
+                        
+                        return (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Infrastructure</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-2xl font-bold">{infrastructureCount}</p>
+                                <p className="text-xs text-muted-foreground">IPs, Domains, Ports</p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Web Apps</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-2xl font-bold">{webAppsCount}</p>
+                                <p className="text-xs text-muted-foreground">Tech Stack, Banners</p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Cloud Storage</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-2xl font-bold">{cloudStorageCount}</p>
+                                <p className="text-xs text-muted-foreground">S3, Azure, GCP</p>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Leaks & Risks</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-2xl font-bold">{leaksRisksCount}</p>
+                                <p className="text-xs text-muted-foreground">Emails, Secrets</p>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        );
+                      })()}
 
                       {/* Summary Statistics */}
                       <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
@@ -528,10 +655,10 @@ export default function ExternalSurfaceMonitoringPage() {
                         });
                         
                         // Categorize by layer
-                        const layer1Types = ['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER'];
-                        const layer2Types = ['SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE'];
+                        const layer1Types = ['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 'TCP_PORT_OPEN', 'UDP_PORT_OPEN'];
+                        const layer2Types = ['SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'];
                         const layer3Types = ['CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY'];
-                        const layer4Types = ['EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL', 'UDP_PORT_OPEN'];
+                        const layer4Types = ['EMAIL_ADDRESS', 'AFFILIATE_EMAILADDR', 'POTENTIAL_VULNERABILITY', 'VULNERABILITY_GENERAL', 'VULNERABILITY_CVE_CRITICAL', 'VULNERABILITY_CVE_HIGH', 'VULNERABILITY_CVE_MEDIUM', 'VULNERABILITY_CVE_LOW', 'BLACKLISTED_INTERNET_NAME', 'BLACKLISTED_COHOST', 'LEAKED_CREDENTIALS', 'PASSWORD_LEAK', 'EXPOSED_API_KEY', 'EXPOSED_SECRET', 'ACCOUNT_EXTERNAL_OWNED', 'ACCOUNT_EXTERNAL_OWNED_COMPROMISED', 'ACCOUNT_EXTERNAL_USER_SHARED_COMPROMISED', 'DARKNET_MENTION', 'LEAK_SITE_MENTION', 'INTERESTING_FILE'];
                         
                         const layer1Count = Object.keys(entityTypeCounts).filter(t => layer1Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
                         const layer2Count = Object.keys(entityTypeCounts).filter(t => layer2Types.includes(t)).reduce((sum, t) => sum + entityTypeCounts[t], 0);
@@ -902,123 +1029,6 @@ export default function ExternalSurfaceMonitoringPage() {
                         );
                       })()}
                       
-                      {/* Export Section - Always show if there are results */}
-                      {scanResult.result.entities && scanResult.result.entities.length > 0 && (
-                        <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
-                          <div className="mb-3">
-                            <p className="text-sm font-semibold">Export Results</p>
-                            <p className="text-xs text-muted-foreground">
-                              Download scan results in JSON or CSV format
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            {/* JSON Export Button */}
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={async () => {
-                                if (jobId && scanResult.result) {
-                                  try {
-                                    setError(null);
-                                    const res = await fetch(`${API_BASE}/api/v1/external-surface/export-json/${jobId}`, {
-                                      method: 'GET'
-                                    });
-                                    if (res.ok) {
-                                      const blob = await res.blob();
-                                      const url = window.URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      const targetName = currentConfig?.target || scanResult?.target || 'scan';
-                                        a.download = `asm_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.json`;
-                                      document.body.appendChild(a);
-                                      a.click();
-                                      window.URL.revokeObjectURL(url);
-                                      document.body.removeChild(a);
-                                    } else {
-                                      const errorData = await res.json().catch(() => ({}));
-                                      setError(errorData.detail || "Failed to generate JSON");
-                                    }
-                                  } catch (err) {
-                                    console.error("Failed to export JSON:", err);
-                                    setError(err instanceof Error ? err.message : "Failed to generate JSON");
-                                  }
-                                }
-                              }}
-                              className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                            >
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              Export JSON
-                            </Button>
-
-                            {/* CSV Export Button */}
-                            {scanResult.result.csv_download_url ? (
-                              <a
-                                href={`${API_BASE}${scanResult.result.csv_download_url}`}
-                                download={scanResult.result.csv_filename || "scan_results.csv"}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 flex-1 justify-center"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Download CSV
-                              </a>
-                            ) : (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={async () => {
-                                  // Generate CSV on-demand from existing results
-                                  if (jobId && scanResult.result.entities) {
-                                    try {
-                                      setError(null);
-                                      const res = await fetch(`${API_BASE}/api/v1/external-surface/export-csv/${jobId}`, {
-                                        method: 'GET'
-                                      });
-                                      if (res.ok) {
-                                        const blob = await res.blob();
-                                        const url = window.URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        const targetName = currentConfig?.target || scanResult?.target || 'scan';
-                                        a.download = `asm_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        window.URL.revokeObjectURL(url);
-                                        document.body.removeChild(a);
-                                        
-                                        // Update scan result to show CSV is available
-                                        setScanResult({
-                                          ...scanResult,
-                                          result: {
-                                            ...scanResult.result,
-                                            csv_filename: a.download,
-                                            csv_download_url: `/api/v1/external-surface/export-csv/${jobId}`
-                                          }
-                                        });
-                                      } else {
-                                        const errorData = await res.json().catch(() => ({}));
-                                        setError(errorData.detail || "Failed to generate CSV");
-                                      }
-                                    } catch (err) {
-                                      console.error("Failed to export CSV:", err);
-                                      setError(err instanceof Error ? err.message : "Failed to generate CSV");
-                                    }
-                                  }
-                                }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
-                              >
-                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Export CSV
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
                       {/* Module Execution Status */}
                       {currentConfig && currentConfig.modules && (
                         <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20">
@@ -1257,10 +1267,15 @@ export default function ExternalSurfaceMonitoringPage() {
                           )}
 
                           {/* Layer 4: Content & Secrets */}
-                          {scanResult.result.entities.filter((e: any) => {
-                            const type = (e.type || '').toUpperCase();
-                            return ['EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL', 'UDP_PORT_OPEN'].includes(type);
-                          }).length > 0 && (
+                          {(() => {
+                            // Use the same layer4Types as the summary cards for consistency
+                            const layer4Types = ['EMAIL_ADDRESS', 'AFFILIATE_EMAILADDR', 'POTENTIAL_VULNERABILITY', 'VULNERABILITY_GENERAL', 'VULNERABILITY_CVE_CRITICAL', 'VULNERABILITY_CVE_HIGH', 'VULNERABILITY_CVE_MEDIUM', 'VULNERABILITY_CVE_LOW', 'BLACKLISTED_INTERNET_NAME', 'BLACKLISTED_COHOST', 'LEAKED_CREDENTIALS', 'PASSWORD_LEAK', 'EXPOSED_API_KEY', 'EXPOSED_SECRET', 'ACCOUNT_EXTERNAL_OWNED', 'ACCOUNT_EXTERNAL_OWNED_COMPROMISED', 'ACCOUNT_EXTERNAL_USER_SHARED_COMPROMISED', 'DARKNET_MENTION', 'LEAK_SITE_MENTION', 'INTERESTING_FILE'];
+                            const layer4Entities = scanResult.result.entities.filter((e: any) => {
+                              const type = (e.type || '').toUpperCase();
+                              return layer4Types.includes(type);
+                            });
+                            
+                            return layer4Entities.length > 0 && (
                             <Card>
                               <CardHeader>
                                 <div className="flex items-center justify-between">
@@ -1269,10 +1284,7 @@ export default function ExternalSurfaceMonitoringPage() {
                                     Layer 4: Content & Secrets
                                   </span>
                                   <Badge variant="secondary">
-                                    {scanResult.result.entities.filter((e: any) => {
-                                      const type = (e.type || '').toUpperCase();
-                                      return ['EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL', 'UDP_PORT_OPEN'].includes(type);
-                                    }).length} entities
+                                    {layer4Entities.length} entities
                                   </Badge>
                                 </div>
                               </CardHeader>
@@ -1287,11 +1299,7 @@ export default function ExternalSurfaceMonitoringPage() {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {scanResult.result.entities
-                                        .filter((e: any) => {
-                                          const type = (e.type || '').toUpperCase();
-                                          return ['EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL', 'UDP_PORT_OPEN'].includes(type);
-                                        })
+                                      {layer4Entities
                                         .slice(0, 50)
                                         .map((entity: any, idx: number) => (
                                         <TableRow key={idx}>
@@ -1311,26 +1319,29 @@ export default function ExternalSurfaceMonitoringPage() {
                                 </div>
                               </CardContent>
                             </Card>
-                          )}
+                            );
+                          })()}
 
                           {/* All Other Entities */}
-                          {scanResult.result.entities.filter((e: any) => 
-                            !['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 
-                              'SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE',
-                              'CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY',
-                              'EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'].includes((e.type || '').toUpperCase())
-                          ).length > 0 && (
+                          {(() => {
+                            // Use the same layer types as defined elsewhere for consistency
+                            const layer1Types = ['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 'TCP_PORT_OPEN', 'UDP_PORT_OPEN'];
+                            const layer2Types = ['SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'];
+                            const layer3Types = ['CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY'];
+                            const layer4Types = ['EMAIL_ADDRESS', 'AFFILIATE_EMAILADDR', 'POTENTIAL_VULNERABILITY', 'VULNERABILITY_GENERAL', 'VULNERABILITY_CVE_CRITICAL', 'VULNERABILITY_CVE_HIGH', 'VULNERABILITY_CVE_MEDIUM', 'VULNERABILITY_CVE_LOW', 'BLACKLISTED_INTERNET_NAME', 'BLACKLISTED_COHOST', 'LEAKED_CREDENTIALS', 'PASSWORD_LEAK', 'EXPOSED_API_KEY', 'EXPOSED_SECRET', 'ACCOUNT_EXTERNAL_OWNED', 'ACCOUNT_EXTERNAL_OWNED_COMPROMISED', 'ACCOUNT_EXTERNAL_USER_SHARED_COMPROMISED', 'DARKNET_MENTION', 'LEAK_SITE_MENTION', 'INTERESTING_FILE'];
+                            const allLayerTypes = [...layer1Types, ...layer2Types, ...layer3Types, ...layer4Types];
+                            
+                            const otherEntities = scanResult.result.entities.filter((e: any) => 
+                              !allLayerTypes.includes((e.type || '').toUpperCase())
+                            );
+                            
+                            return otherEntities.length > 0 && (
                             <Card>
                               <CardHeader>
                                 <div className="flex items-center justify-between">
                                   <span>Other Entities</span>
                                   <Badge variant="secondary">
-                                    {scanResult.result.entities.filter((e: any) => 
-                                      !['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 
-                                        'SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE',
-                                        'CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY',
-                                        'EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'].includes((e.type || '').toUpperCase())
-                                    ).length} entities
+                                    {otherEntities.length} entities
                                   </Badge>
                                 </div>
                               </CardHeader>
@@ -1345,13 +1356,7 @@ export default function ExternalSurfaceMonitoringPage() {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {scanResult.result.entities
-                                        .filter((e: any) => 
-                                          !['INTERNET_NAME', 'IP_ADDRESS', 'NETBLOCK_OWNER', 'BGP_AS_OWNER', 
-                                            'SOFTWARE_USED', 'WEBSERVER_BANNER', 'HTTP_CODE', 'TECHNOLOGY', 'WEBSERVER_HTTPHEADERS', 'TARGET_WEB_CONTENT', 'TARGET_WEB_CONTENT_TYPE',
-                                            'CLOUD_STORAGE_BUCKET', 'CLOUD_STORAGE_BUCKET_OPEN', 'CLOUD_STORAGE_BUCKET_OPEN_DIRECTORY',
-                                            'EMAIL_ADDRESS', 'FORM_NAME', 'TCP_PORT_OPEN', 'LINKED_URL_INTERNAL', 'LINKED_URL_EXTERNAL'].includes((e.type || '').toUpperCase())
-                                        )
+                                      {otherEntities
                                         .slice(0, 50)
                                         .map((entity: any, idx: number) => (
                                         <TableRow key={idx}>
@@ -1371,7 +1376,8 @@ export default function ExternalSurfaceMonitoringPage() {
                                 </div>
                               </CardContent>
                             </Card>
-                          )}
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1424,17 +1430,6 @@ export default function ExternalSurfaceMonitoringPage() {
                   )}
                 </CardContent>
             </Card>
-          </div>
-        )}
-
-        {/* Dashboard when no scan running */}
-        {!jobId && !status && (
-          <div className="px-6 py-12 text-center">
-            <Globe className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">No Active Scan</h2>
-            <p className="text-muted-foreground mb-6">
-              Start a scan from the right panel to discover external surface assets
-            </p>
           </div>
         )}
       </div>
@@ -1691,4 +1686,5 @@ export default function ExternalSurfaceMonitoringPage() {
     </div>
   );
 }
+
 

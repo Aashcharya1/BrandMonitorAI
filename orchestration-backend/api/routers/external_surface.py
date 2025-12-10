@@ -191,6 +191,9 @@ async def start_spiderfoot_scan(request: ASMScanRequest):
         content_modules = [
             "sfp_spider",           # Web crawling for emails/forms - CRITICAL (active, NO API KEY)
             "sfp_portscan_tcp",     # TCP port scanning - CRITICAL (active, NO API KEY)
+            "sfp_intfiles",         # Interesting files discovery - Finds exposed config files, backups (active, NO API KEY)
+            "sfp_tool_snallygaster", # Snallygaster - Finds file leaks and security problems (active, requires tool installed)
+            "sfp_tool_nuclei",      # Nuclei - Fast vulnerability scanner (active, requires tool installed)
             # Note: sfp_shodan requires API key, so it's in optional modules below
         ]
         
@@ -222,6 +225,9 @@ async def start_spiderfoot_scan(request: ASMScanRequest):
             "sfp_ssl",              # SSL analysis (NO API KEY)
             "sfp_certificate",      # Certificate analysis (NO API KEY)
             "sfp_webanalyze",       # Web analysis (NO API KEY)
+            "sfp_intfiles",         # Interesting files discovery (already in content_modules, but listed here for clarity)
+            "sfp_tool_snallygaster", # Snallygaster (already in content_modules, but listed here for clarity)
+            "sfp_tool_nuclei",      # Nuclei (already in content_modules, but listed here for clarity)
         ]
         
         # Combine all enrichment modules (technology + cloud + content)
@@ -703,7 +709,7 @@ async def enrich_scan(request: EnrichmentScanRequest):
         # Get enrichment modules (Layers 2-4) - All NON-API modules
         technology_modules = ["sfp_wappalyzer", "sfp_httpheader"]  # Layer 2 (NO API KEYS)
         cloud_modules = ["sfp_s3bucket", "sfp_azureblobstorage", "sfp_googleobjectstorage"]  # Layer 3 (NO API KEYS)
-        content_modules = ["sfp_spider", "sfp_portscan_tcp"]  # Layer 4 (NO API KEYS - sfp_spider and sfp_portscan_tcp)
+        content_modules = ["sfp_spider", "sfp_portscan_tcp", "sfp_intfiles", "sfp_tool_snallygaster", "sfp_tool_nuclei"]  # Layer 4 (NO API KEYS - includes vulnerability scanning)
         active_modules = ["sfp_ssl", "sfp_certificate", "sfp_webanalyze"]  # Additional active (NO API KEYS)
         # Note: sfp_shodan requires API key, so it's optional but can be added if configured
         enrichment_modules = technology_modules + cloud_modules + content_modules + active_modules

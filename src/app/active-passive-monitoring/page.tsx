@@ -16,8 +16,15 @@ import {
   Network,
   Zap,
   Shield,
-  Download
+  Download,
+  ChevronDown
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -264,32 +271,52 @@ export default function ActivePassiveMonitoringPage() {
       {/* Main content area */}
       <div className="flex-1 overflow-y-auto space-y-6 p-0 md:p-0 h-full">
         {/* Header with Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-6">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-6 w-6" />
               Active & Passive Monitoring
             </h1>
-            {currentConfig && (
+            {/* Only show scanning info when there's an active scan */}
+            {currentConfig && (jobId || status || scanResult) && (
               <p className="text-sm text-muted-foreground mt-1">
                 Scanning: <span className="font-mono font-medium">{currentConfig.target}</span>
               </p>
             )}
+            {status && !currentConfig && (jobId || scanResult) && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Status: <span className="font-mono font-medium capitalize">{status}</span>
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleNewScan}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              New Scan
-            </Button>
+            {/* New Scan button only shows when scan is finished and results are shown */}
+            {scanResult && status === "finished" && (
+              <Button variant="outline" onClick={handleNewScan}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                New Scan
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Main Content */}
-        <>
+        {/* Empty state when no scan - only show this when nothing is active */}
+        {!jobId && !status && !scanResult && (
+          <div className="px-6 py-12 text-center">
+            <Activity className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">No Active Scan</h2>
+            <p className="text-muted-foreground mb-6">
+              Start a scan from the right panel to discover assets, services, and vulnerabilities
+            </p>
+          </div>
+        )}
+
+        {/* Main Content - only show when there's an active scan or results */}
+        {(jobId || status || scanResult) && (
+          <div className="px-6 space-y-6">
             {/* Scan Status Card */}
-            {(jobId || status || scanResult) && (
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(status)}
@@ -301,44 +328,79 @@ export default function ActivePassiveMonitoringPage() {
                           {getProgressValue(status)}%
                         </span>
                       )}
-                      {/* Download CSV Button */}
+                      {/* Export Dropdown */}
                       {scanResult && status === "finished" && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={async () => {
-                            if (jobId && scanResult) {
-                              try {
-                                setError(null);
-                                const res = await fetch(`${API_BASE}/api/v1/monitor/export-csv/${jobId}`, {
-                                  method: 'GET'
-                                });
-                                if (res.ok) {
-                                  const blob = await res.blob();
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  const targetName = currentConfig?.target || scanResult?.domain || 'scan';
-                                  a.download = `monitoring_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  window.URL.revokeObjectURL(url);
-                                  document.body.removeChild(a);
-                                } else {
-                                  const errorData = await res.json().catch(() => ({}));
-                                  setError(errorData.detail || "Failed to generate CSV");
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Download className="h-4 w-4" />
+                              Export as
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                if (jobId && scanResult) {
+                                  try {
+                                    setError(null);
+                                    // Export as JSON
+                                    const jsonStr = JSON.stringify(scanResult, null, 2);
+                                    const jsonBlob = new Blob([jsonStr], { type: 'application/json' });
+                                    const url = window.URL.createObjectURL(jsonBlob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    const targetName = currentConfig?.target || scanResult?.domain || 'scan';
+                                    a.download = `monitoring_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.json`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                  } catch (err) {
+                                    console.error("Failed to export JSON:", err);
+                                    setError(err instanceof Error ? err.message : "Failed to generate JSON");
+                                  }
                                 }
-                              } catch (err) {
-                                console.error("Failed to export CSV:", err);
-                                setError(err instanceof Error ? err.message : "Failed to generate CSV");
-                              }
-                            }
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Export CSV
-                        </Button>
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Export as JSON
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                if (jobId && scanResult) {
+                                  try {
+                                    setError(null);
+                                    const res = await fetch(`${API_BASE}/api/v1/monitor/export-csv/${jobId}`, {
+                                      method: 'GET'
+                                    });
+                                    if (res.ok) {
+                                      const blob = await res.blob();
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      const targetName = currentConfig?.target || scanResult?.domain || 'scan';
+                                      a.download = `monitoring_scan_${targetName.replace(/\./g, '_')}_${Date.now()}.csv`;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    } else {
+                                      const errorData = await res.json().catch(() => ({}));
+                                      setError(errorData.detail || "Failed to generate CSV");
+                                    }
+                                  } catch (err) {
+                                    console.error("Failed to export CSV:", err);
+                                    setError(err instanceof Error ? err.message : "Failed to generate CSV");
+                                  }
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Export as CSV
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </CardTitle>
@@ -632,7 +694,6 @@ export default function ActivePassiveMonitoringPage() {
                   )}
                 </CardContent>
               </Card>
-            )}
 
             {/* Kibana Dashboard Embed */}
             {resultUrl && status === "finished" && (
@@ -710,7 +771,8 @@ export default function ActivePassiveMonitoringPage() {
                 </div>
               </>
             )}
-        </>
+          </div>
+        )}
       </div>
 
       {/* Right options sidebar */}
