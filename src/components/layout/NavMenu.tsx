@@ -16,33 +16,30 @@ import {
   ShieldAlert,
   Users,
   MessageSquare,
-  History,
-  LogIn,
   Globe,
+  Database,
+  Shield,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
-  { href: "/", label: "Chat", icon: MessageSquare, auth: true },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, auth: true },
-  { href: "/external-surface-monitoring", label: "External Surface", icon: Globe, auth: true },
-  { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck, auth: true },
-  { href: "/dns-monitoring", label: "DNS", icon: Network, auth: true },
-  { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity, auth: true },
-  { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert, auth: true },
-  { href: "/social-media-monitoring", label: "Social Media", icon: Users, auth: true },
-  { href: "/login", label: "Login", icon: LogIn, auth: false },
+  { href: "/", label: "Chat", icon: MessageSquare },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/external-surface-monitoring", label: "External Surface", icon: Globe },
+  { href: "/data-leak-monitoring", label: "Data Leaks", icon: Database },
+  { href: "/takedown-monitoring", label: "Takedown", icon: Shield },
+  { href: "/dmarc-monitoring", label: "DMARC", icon: MailCheck },
+  { href: "/dns-monitoring", label: "DNS", icon: Network },
+  { href: "/active-passive-monitoring", label: "Monitoring", icon: Activity },
+  { href: "/dark-web-monitoring", label: "Dark Web", icon: ShieldAlert },
+  { href: "/social-media-monitoring", label: "Social Media", icon: Users },
 ];
 
 export function NavMenu() {
   const pathname = usePathname();
-  const { user } = useAuth();
-
-  const filteredNavItems = navItems.filter(item => item.auth ? !!user : !user);
 
   return (
     <SidebarMenu className="p-2">
-      {filteredNavItems.map((item) => (
+      {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
             asChild

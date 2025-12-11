@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 
 # Import routers
 try:
-    from routers import monitoring, ai, auth, files, librechat, external_surface, dmarc, dns
+    from routers import monitoring, ai, auth, files, librechat, external_surface, dmarc, dns, data_leaks, takedown
 except ImportError:
     # Fallback for development
     import sys
     import os
     sys.path.insert(0, os.path.dirname(__file__))
-    from routers import monitoring, ai, auth, files, librechat, external_surface, dmarc, dns
+    from routers import monitoring, ai, auth, files, librechat, external_surface, dmarc, dns, data_leaks, takedown
 
 # Lifespan context manager
 @asynccontextmanager
@@ -142,6 +142,8 @@ app.include_router(monitoring.router, prefix="/api/v1", tags=["monitoring"])
 app.include_router(external_surface.router, prefix="/api/v1", tags=["external-surface"])
 app.include_router(dmarc.router, prefix="/api/v1", tags=["dmarc"])
 app.include_router(dns.router, prefix="/api/v1", tags=["dns"])
+app.include_router(data_leaks.router, prefix="/api/v1", tags=["data-leaks"])
+app.include_router(takedown.router, prefix="/api/v1", tags=["takedown"])
 app.include_router(ai.router, prefix="/api/v1", tags=["ai"])
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
 app.include_router(files.router, prefix="/api/v1", tags=["files"])

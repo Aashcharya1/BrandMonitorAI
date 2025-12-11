@@ -43,9 +43,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading && !user) {
       const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/oauth-register";
-      // Do not redirect from root immediately; allow session to hydrate
-      if (!isAuthPage && pathname !== "/") {
-      router.push("/login");
+      const isPublicPage = pathname === "/" || pathname === "/data-leak-monitoring" || pathname === "/takedown-monitoring";
+      // Do not redirect from root or public pages
+      if (!isAuthPage && !isPublicPage) {
+        router.push("/login");
       }
     }
   }, [isLoading, user, pathname, router]);
@@ -76,7 +77,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <main className="h-full flex-1 overflow-auto">{children}</main>;
   }
 
-  if (isLoading || (!user && pathname !== '/login' && pathname !== '/register' && pathname !== '/' && pathname !== '/oauth-register')) {
+  const publicPages = ['/', '/login', '/register', '/oauth-register', '/data-leak-monitoring', '/takedown-monitoring'];
+  if (isLoading || (!user && !publicPages.includes(pathname))) {
     return (
         <div className="flex h-screen w-screen items-center justify-center">
             <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>

@@ -6,9 +6,9 @@ python-multipart==0.0.6
 # Database
 motor==3.3.2
 pymongo==4.6.1
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
+sqlalchemy>=2.0.44
+psycopg[binary]>=3.1
+asyncpg>=0.29.0
 
 # Task Queue
 celery==5.3.6
@@ -32,7 +32,7 @@ anthropic==0.18.1
 
 # File Processing (OCR, Text Extraction)
 pytesseract==0.3.10
-Pillow==10.2.0
+Pillow>=10.2.0
 PyPDF2==3.0.1
 python-docx==1.1.0
 
@@ -42,11 +42,17 @@ requests==2.32.3
 # Note: urllib3 version relaxed to allow elasticsearch 7.13.4 compatibility
 # elasticsearch 7.13.4 requires urllib3<2, so we use 1.26.x
 urllib3>=1.26.0,<2.0.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
+pydantic>=2.5.3
+pydantic-settings>=2.1.0
 
 # DNS Monitoring
 dnspython==2.6.1
+
+# Data Leak Monitoring
+# Note: TruffleHog is optional and can be installed separately
+# Install: pip install trufflehog (or download binary from https://github.com/trufflesecurity/trufflehog)
+# HaveIBeenPwned API requires an API key from https://haveibeenpwned.com/API/Key
+# Shodan API requires an API key from https://account.shodan.io/
 
 # DMARC Monitoring
 setuptools>=65.0.0  # Required by checkdmarc for pkg_resources
