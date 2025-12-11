@@ -2106,4 +2106,377 @@ def orchestrate_scan(self, scan_id: str, domain: str, nessus_policy_uuid: str = 
 	return result
 
 
+# ==================== Data Leak Monitoring Tasks ====================
+
+@celery_app.task(name='leak.scan_exposed_databases', bind=True)
+def scan_exposed_databases_task(
+	self, 
+	scan_id: str, 
+	domain: str = None, 
+	org: str = None,
+	db_types: List[str] = None,
+	limit: int = 100
+) -> Dict[str, Any]:
+	"""
+	Celery task for scanning exposed databases (LeakLooker style).
+	Uses Shodan API to find exposed MongoDB, Elasticsearch, Redis, etc.
+	"""
+	import asyncio
+	logger.info(f"Starting exposed database scan {scan_id} for {domain or org}")
+	
+	try:
+		# Ensure path is set before importing
+		if _current_dir not in sys.path:
+			sys.path.insert(0, _current_dir)
+		from services.data_leak_monitor import data_leak_monitor, DatabaseType
+		
+		# Convert string db_types to enum if provided
+		db_type_enums = None
+		if db_types:
+			db_type_enums = []
+			for dt in db_types:
+				try:
+					db_type_enums.append(DatabaseType(dt.lower()))
+				except ValueError:
+					logger.warning(f"Unknown database type: {dt}")
+		
+		# Run async scan
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		results = loop.run_until_complete(
+			data_leak_monitor.scan_exposed_databases(
+				domain=domain,
+				org=org,
+				db_types=db_type_enums,
+				limit=limit
+			)
+		)
+		loop.close()
+		
+		# Convert results to dict
+		from dataclasses import asdict
+		findings = [asdict(r) for r in results]
+		
+		# Calculate severity summary
+		severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+		for r in results:
+			severity_counts[r.severity] = severity_counts.get(r.severity, 0) + 1
+		
+		logger.info(f"Exposed database scan {scan_id} completed: {len(findings)} findings")
+		
+		return {
+			'scan_id': scan_id,
+			'status': 'completed',
+			'target': domain or org,
+			'total_findings': len(findings),
+			'severity_summary': severity_counts,
+			'findings': findings,
+			'completed_at': datetime.utcnow().isoformat()
+		}
+		
+	except Exception as e:
+		logger.error(f"Exposed database scan failed: {e}", exc_info=True)
+		return {
+			'scan_id': scan_id,
+			'status': 'failed',
+			'error': str(e),
+			'findings': []
+		}
+
+
+@celery_app.task(name='leak.scan_repository_secrets', bind=True)
+def scan_repository_secrets_task(
+	self,
+	scan_id: str,
+	repo_url: str,
+	branch: str = None,
+	since_commit: str = None,
+	max_depth: int = None
+) -> Dict[str, Any]:
+	"""
+	Celery task for scanning git repositories for leaked secrets.
+	Uses TruffleHog for detection.
+	"""
+	import asyncio
+	logger.info(f"Starting repository secret scan {scan_id} for {repo_url}")
+	
+	try:
+		if _current_dir not in sys.path:
+			sys.path.insert(0, _current_dir)
+		from services.data_leak_monitor import data_leak_monitor
+		
+		# Update task state
+		self.update_state(state='PROGRESS', meta={
+			'scan_id': scan_id,
+			'status': 'scanning',
+			'message': 'Scanning repository for secrets...'
+		})
+		
+		# Run async scan
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		results = loop.run_until_complete(
+			data_leak_monitor.scan_repository_secrets(
+				repo_url=repo_url,
+				branch=branch,
+				since_commit=since_commit,
+				max_depth=max_depth
+			)
+		)
+		loop.close()
+		
+		# Convert results
+		from dataclasses import asdict
+		findings = [asdict(r) for r in results]
+		
+		# Calculate summaries
+		severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+		by_detector = {}
+		for r in results:
+			severity_counts[r.severity] = severity_counts.get(r.severity, 0) + 1
+			detector = r.data.get('detector', 'unknown')
+			by_detector[detector] = by_detector.get(detector, 0) + 1
+		
+		logger.info(f"Repository secret scan {scan_id} completed: {len(findings)} findings")
+		
+		return {
+			'scan_id': scan_id,
+			'status': 'completed',
+			'repository': repo_url,
+			'total_findings': len(findings),
+			'severity_summary': severity_counts,
+			'detector_summary': by_detector,
+			'findings': findings,
+			'completed_at': datetime.utcnow().isoformat()
+		}
+		
+	except Exception as e:
+		logger.error(f"Repository secret scan failed: {e}", exc_info=True)
+		return {
+			'scan_id': scan_id,
+			'status': 'failed',
+			'error': str(e),
+			'findings': []
+		}
+
+
+@celery_app.task(name='leak.comprehensive_scan', bind=True)
+def comprehensive_leak_scan_task(
+	self,
+	scan_id: str,
+	domain: str = None,
+	emails: List[str] = None,
+	org: str = None,
+	repo_urls: List[str] = None,
+	include_db_scan: bool = True,
+	include_secret_scan: bool = True
+) -> Dict[str, Any]:
+	"""
+	Celery task for comprehensive data leak scanning.
+	Combines email/domain breach checks, exposed database scanning, and secret detection.
+	"""
+	import asyncio
+	logger.info(f"Starting comprehensive leak scan {scan_id}")
+	
+	try:
+		if _current_dir not in sys.path:
+			sys.path.insert(0, _current_dir)
+		from services.data_leak_monitor import data_leak_monitor
+		
+		# Update progress
+		self.update_state(state='PROGRESS', meta={
+			'scan_id': scan_id,
+			'status': 'running',
+			'message': 'Starting comprehensive scan...',
+			'progress': 0
+		})
+		
+		# Run comprehensive scan
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		results = loop.run_until_complete(
+			data_leak_monitor.comprehensive_leak_scan(
+				domain=domain,
+				emails=emails,
+				org=org,
+				repo_urls=repo_urls,
+				include_db_scan=include_db_scan,
+				include_secret_scan=include_secret_scan
+			)
+		)
+		loop.close()
+		
+		logger.info(f"Comprehensive leak scan {scan_id} completed: {results.get('summary', {}).get('total_findings', 0)} findings")
+		
+		return results
+		
+	except Exception as e:
+		logger.error(f"Comprehensive leak scan failed: {e}", exc_info=True)
+		return {
+			'scan_id': scan_id,
+			'status': 'failed',
+			'error': str(e),
+			'findings': [],
+			'summary': {'total_findings': 0, 'error': str(e)}
+		}
+
+
+@celery_app.task(name='leak.scheduled_monitoring', bind=True)
+def scheduled_leak_monitoring(self) -> Dict[str, Any]:
+	"""
+	Scheduled task for continuous leak monitoring.
+	Runs periodically to check monitored assets for new leaks.
+	
+	Configure with Celery Beat:
+	celery -A celery_app beat --loglevel=info
+	"""
+	import asyncio
+	logger.info("Running scheduled leak monitoring")
+	
+	try:
+		if _current_dir not in sys.path:
+			sys.path.insert(0, _current_dir)
+		from services.data_leak_monitor import data_leak_monitor
+		
+		# Get monitoring configuration from database
+		# In production, this would query the MonitoredAsset table
+		# For now, we'll use environment variables as fallback
+		
+		monitored_domains = os.getenv('MONITORED_DOMAINS', '').split(',')
+		monitored_emails = os.getenv('MONITORED_EMAILS', '').split(',')
+		
+		# Filter empty strings
+		monitored_domains = [d.strip() for d in monitored_domains if d.strip()]
+		monitored_emails = [e.strip() for e in monitored_emails if e.strip()]
+		
+		if not monitored_domains and not monitored_emails:
+			logger.info("No monitored assets configured. Skipping scheduled scan.")
+			return {'status': 'skipped', 'reason': 'No monitored assets configured'}
+		
+		results = {
+			'scan_id': f"scheduled-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+			'started_at': datetime.utcnow().isoformat(),
+			'domains_checked': len(monitored_domains),
+			'emails_checked': len(monitored_emails),
+			'new_findings': [],
+			'errors': []
+		}
+		
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		
+		# Check domains for breaches
+		for domain in monitored_domains:
+			try:
+				breaches = loop.run_until_complete(
+					data_leak_monitor.check_domain_breaches(domain)
+				)
+				for breach in breaches:
+					results['new_findings'].append({
+						'type': 'domain_breach',
+						'target': domain,
+						'breach': breach.name,
+						'severity': 'high'
+					})
+			except Exception as e:
+				results['errors'].append(f"Error checking {domain}: {str(e)}")
+		
+		# Check emails for breaches
+		for email in monitored_emails:
+			try:
+				breaches = loop.run_until_complete(
+					data_leak_monitor.check_email_breaches(email)
+				)
+				for breach in breaches:
+					results['new_findings'].append({
+						'type': 'email_breach',
+						'target': email,
+						'breach': breach.name,
+						'severity': 'high'
+					})
+			except Exception as e:
+				results['errors'].append(f"Error checking {email}: {str(e)}")
+		
+		loop.close()
+		
+		results['completed_at'] = datetime.utcnow().isoformat()
+		results['total_new_findings'] = len(results['new_findings'])
+		
+		# If new findings, trigger alerts (in production)
+		if results['new_findings']:
+			logger.warning(f"Scheduled monitoring found {len(results['new_findings'])} new findings!")
+			# TODO: Send alerts via webhook/email
+		
+		logger.info(f"Scheduled leak monitoring completed: {len(results['new_findings'])} new findings")
+		return results
+		
+	except Exception as e:
+		logger.error(f"Scheduled leak monitoring failed: {e}", exc_info=True)
+		return {'status': 'failed', 'error': str(e)}
+
+
+@celery_app.task(name='leak.check_email_batch', bind=True)
+def check_email_batch_task(self, emails: List[str]) -> Dict[str, Any]:
+	"""
+	Celery task to check multiple emails for breaches in batch.
+	Respects HIBP rate limits.
+	"""
+	import asyncio
+	logger.info(f"Starting batch email breach check for {len(emails)} emails")
+	
+	try:
+		if _current_dir not in sys.path:
+			sys.path.insert(0, _current_dir)
+		from services.data_leak_monitor import data_leak_monitor
+		
+		results = {
+			'total_emails': len(emails),
+			'emails_with_breaches': 0,
+			'total_breaches': 0,
+			'results': []
+		}
+		
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		
+		for i, email in enumerate(emails):
+			try:
+				# Update progress
+				self.update_state(state='PROGRESS', meta={
+					'current': i + 1,
+					'total': len(emails),
+					'email': email
+				})
+				
+				breaches = loop.run_until_complete(
+					data_leak_monitor.check_email_breaches(email)
+				)
+				
+				email_result = {
+					'email': email,
+					'breach_count': len(breaches),
+					'breaches': [b.name for b in breaches]
+				}
+				results['results'].append(email_result)
+				
+				if breaches:
+					results['emails_with_breaches'] += 1
+					results['total_breaches'] += len(breaches)
+					
+			except Exception as e:
+				results['results'].append({
+					'email': email,
+					'error': str(e)
+				})
+		
+		loop.close()
+		
+		logger.info(f"Batch email check completed: {results['emails_with_breaches']}/{len(emails)} have breaches")
+		return results
+		
+	except Exception as e:
+		logger.error(f"Batch email check failed: {e}", exc_info=True)
+		return {'status': 'failed', 'error': str(e)}
+
+
 
